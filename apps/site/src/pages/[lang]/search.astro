@@ -1,0 +1,24 @@
+---
+import { LANGS, type Lang } from "@blog/shared";
+import { t } from "../../i18n";
+import Base from "../../layouts/Base.astro";
+import { urls } from "../../lib/urls";
+
+export function getStaticPaths() {
+  return LANGS.map((lang) => ({ params: { lang } }));
+}
+
+const ui = Astro.params.lang as Lang;
+const dict = t(ui);
+const other: Lang = ui === "vi" ? "ja" : "vi";
+---
+
+<Base ui={ui} title={`${dict["search.title"]} · ${dict.siteName}`} altUrl={urls.search(other)}>
+  <link rel="stylesheet" href="/pagefind/pagefind-ui.css" />
+  <h1 class="year">{dict["search.title"]}</h1>
+  <div id="search"></div>
+  <script is:inline src="/pagefind/pagefind-ui.js"></script>
+  <script is:inline>
+    new PagefindUI({ element: "#search", showSubResults: false, showImages: false });
+  </script>
+</Base>

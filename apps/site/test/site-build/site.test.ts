@@ -113,3 +113,18 @@ describe("tag pages and 404", () => {
     expect(html).toContain("Không tìm thấy trang");
   });
 });
+
+describe("search", () => {
+  it("builds one Pagefind index per UI language", () => {
+    expect(exists("pagefind/pagefind.js")).toBe(true);
+    const entry = JSON.parse(read("pagefind/pagefind-entry.json"));
+    expect(Object.keys(entry.languages).sort()).toEqual(["ja", "vi"]);
+  });
+
+  it("serves a search page per language that loads the Pagefind UI", () => {
+    const html = read("ja/search/index.html");
+    expect(html).toContain('<html lang="ja"');
+    expect(html).toContain("/pagefind/pagefind-ui.js");
+    expect(html).toContain('id="search"');
+  });
+});
