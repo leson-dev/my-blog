@@ -7,6 +7,7 @@ import {
   type SchedulerClient,
   UpdateScheduleCommand,
 } from "@aws-sdk/client-scheduler";
+import type { Lang } from "@blog/shared";
 import type { ScheduledPublishEvent } from "../../events";
 import type { PublishScheduler } from "../../usecases/ports";
 
@@ -16,7 +17,7 @@ export interface SchedulerTarget {
   roleArn: string;
 }
 
-export const scheduleName = (postId: string) => `post-${postId}`;
+export const scheduleName = (postId: string, lang: Lang) => `post-${postId}-${lang}`;
 
 /** "2026-10-12T08:00:00.000Z" -> "at(2026-10-12T08:00:00)" (interpreted in UTC). */
 export const atExpression = (iso: string) => `at(${iso.slice(0, 19)})`;
@@ -30,10 +31,10 @@ export class EventBridgePublishScheduler implements PublishScheduler {
     this.target = target;
   }
 
-  async schedule(postId: string, publishAt: string): Promise<void> {
-    const event: ScheduledPublishEvent = { type: "scheduled-publish", postId, publishAt };
+  async schedule(postId: string, lang: Lang, publishAt: string): Promise<void> {
+    const event: ScheduledPublishEvent = { type: "scheduled-publish", postId, lang, publishAt };
     const input: CreateScheduleCommandInput = {
-      Name: scheduleName(postId),
+      Name: scheduleName(postId, lang),
       GroupName: this.target.groupName,
       ScheduleExpression: atExpression(publishAt),
       ScheduleExpressionTimezone: "UTC",
@@ -53,10 +54,13 @@ export class EventBridgePublishScheduler implements PublishScheduler {
     }
   }
 
-  async cancel(postId: string): Promise<void> {
+  async cancel(postId: string, lang: Lang): Promise<void> {
     try {
       await this.client.send(
-        new DeleteScheduleCommand({ Name: scheduleName(postId), GroupName: this.target.groupName }),
+        new DeleteScheduleCommand({
+          Name: scheduleName(postId, lang),
+          GroupName: this.target.groupName,
+        }),
       );
     } catch (err) {
       if (err instanceof ResourceNotFoundException) return;
