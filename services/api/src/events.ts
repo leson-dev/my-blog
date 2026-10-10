@@ -1,8 +1,10 @@
+import { langSchema } from "@blog/shared";
 import { z } from "zod";
 
 export const scheduledPublishEventSchema = z.object({
   type: z.literal("scheduled-publish"),
   postId: z.string().min(1),
+  lang: langSchema,
   publishAt: z.iso.datetime(),
 });
 export type ScheduledPublishEvent = z.infer<typeof scheduledPublishEventSchema>;
