@@ -6,21 +6,24 @@ import {
   type DynamoDBDocumentClient,
   GetCommand,
   PutCommand,
-  QueryCommand,
   TransactWriteCommand,
 } from "@aws-sdk/lib-dynamodb";
-import type { Post } from "@blog/shared";
+import type { Lang, Post } from "@blog/shared";
 import { DomainError } from "../../domain/errors";
+import { slugEntries } from "../../domain/post";
 import type { PostRepository } from "../../usecases/ports";
-import { fromPostItem, POSTS_INDEX, postKey, slugKey, toPostItem } from "./items";
+import { fromPostItem, postKey, slugKey, toPostItem } from "./items";
+import { queryIndex } from "./queryIndex";
 
 const versionConflict = () =>
   new DomainError("VERSION_CONFLICT", "post was modified elsewhere, reload and try again");
 const slugTaken = (slug: string) =>
-  new DomainError("SLUG_TAKEN", `slug "${slug}" is already used by another post`);
+  new DomainError("SLUG_TAKEN", `slug "${slug}" is already used by another post or language`);
 
-const failedAt = (err: TransactionCanceledException, index: number) =>
-  err.CancellationReasons?.[index]?.Code === "ConditionalCheckFailed";
+const firstFailed = (err: TransactionCanceledException) =>
+  err.CancellationReasons?.findIndex((r) => r.Code === "ConditionalCheckFailed") ?? -1;
+
+type SlugEntry = { lang: Lang; slug: string };
 
 export class DynamoPostRepository implements PostRepository {
   private readonly db: DynamoDBDocumentClient;
@@ -37,26 +40,11 @@ export class DynamoPostRepository implements PostRepository {
   }
 
   async list(): Promise<Post[]> {
-    const posts: Post[] = [];
-    let startKey: Record<string, unknown> | undefined;
-    do {
-      const res = await this.db.send(
-        new QueryCommand({
-          TableName: this.tableName,
-          IndexName: POSTS_INDEX,
-          KeyConditionExpression: "GSI1PK = :pk",
-          ExpressionAttributeValues: { ":pk": "POST" },
-          ScanIndexForward: false,
-          ExclusiveStartKey: startKey,
-        }),
-      );
-      posts.push(...(res.Items ?? []).map(fromPostItem));
-      startKey = res.LastEvaluatedKey;
-    } while (startKey);
-    return posts;
+    return (await queryIndex(this.db, this.tableName, "POST", true)).map(fromPostItem);
   }
 
   async create(post: Post): Promise<void> {
+    const slugs = slugEntries(post);
     try {
       await this.db.send(
         new TransactWriteCommand({
@@ -68,25 +56,25 @@ export class DynamoPostRepository implements PostRepository {
                 ConditionExpression: "attribute_not_exists(PK)",
               },
             },
-            {
-              Put: {
-                TableName: this.tableName,
-                Item: { ...slugKey(post.slug), postId: post.id },
-                ConditionExpression: "attribute_not_exists(PK)",
-              },
-            },
+            ...slugs.map((entry) => this.reserve(post.id, entry)),
           ],
         }),
       );
     } catch (err) {
-      if (err instanceof TransactionCanceledException && failedAt(err, 1)) {
-        throw slugTaken(post.slug);
+      if (err instanceof TransactionCanceledException) {
+        const failed = slugs[firstFailed(err) - 1];
+        if (failed) throw slugTaken(failed.slug);
       }
       throw err;
     }
   }
 
   async update(next: Post, prev: Post): Promise<void> {
+    const before = new Map(slugEntries(prev).map((e) => [e.lang, e.slug]));
+    const after = new Map(slugEntries(next).map((e) => [e.lang, e.slug]));
+    const added = slugEntries(next).filter((e) => before.get(e.lang) !== e.slug);
+    const removed = slugEntries(prev).filter((e) => after.get(e.lang) !== e.slug);
+
     const putPost = {
       TableName: this.tableName,
       Item: toPostItem(next),
@@ -95,7 +83,7 @@ export class DynamoPostRepository implements PostRepository {
       ExpressionAttributeValues: { ":v": prev.version },
     };
 
-    if (next.slug === prev.slug) {
+    if (added.length === 0 && removed.length === 0) {
       try {
         await this.db.send(new PutCommand(putPost));
       } catch (err) {
@@ -110,21 +98,19 @@ export class DynamoPostRepository implements PostRepository {
         new TransactWriteCommand({
           TransactItems: [
             { Put: putPost },
-            {
-              Put: {
-                TableName: this.tableName,
-                Item: { ...slugKey(next.slug), postId: next.id },
-                ConditionExpression: "attribute_not_exists(PK)",
-              },
-            },
-            { Delete: { TableName: this.tableName, Key: slugKey(prev.slug) } },
+            ...added.map((entry) => this.reserve(next.id, entry)),
+            ...removed.map((entry) => ({
+              Delete: { TableName: this.tableName, Key: slugKey(entry.slug) },
+            })),
           ],
         }),
       );
     } catch (err) {
       if (err instanceof TransactionCanceledException) {
-        if (failedAt(err, 0)) throw versionConflict();
-        if (failedAt(err, 1)) throw slugTaken(next.slug);
+        const index = firstFailed(err);
+        if (index === 0) throw versionConflict();
+        const failed = added[index - 1];
+        if (failed) throw slugTaken(failed.slug);
       }
       throw err;
     }
@@ -135,9 +121,21 @@ export class DynamoPostRepository implements PostRepository {
       new TransactWriteCommand({
         TransactItems: [
           { Delete: { TableName: this.tableName, Key: postKey(post.id) } },
-          { Delete: { TableName: this.tableName, Key: slugKey(post.slug) } },
+          ...slugEntries(post).map((entry) => ({
+            Delete: { TableName: this.tableName, Key: slugKey(entry.slug) },
+          })),
         ],
       }),
     );
+  }
+
+  private reserve(postId: string, entry: SlugEntry) {
+    return {
+      Put: {
+        TableName: this.tableName,
+        Item: { ...slugKey(entry.slug), postId, lang: entry.lang },
+        ConditionExpression: "attribute_not_exists(PK)",
+      },
+    };
   }
 }
