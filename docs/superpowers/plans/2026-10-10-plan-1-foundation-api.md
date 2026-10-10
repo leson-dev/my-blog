@@ -6,7 +6,7 @@
 
 **Architecture:** `packages/shared` chứa kiểu dữ liệu + zod schema dùng chung. `services/api` chia 4 lớp: `domain/` (hàm thuần, không import AWS SDK) → `usecases/` (điều phối qua các interface "port") → `adapters/` (DynamoDB, SQS, EventBridge Scheduler, S3) → `handlers/` (API Gateway HTTP API + sự kiện Scheduler). Use case được test bằng adapter giả trong bộ nhớ; adapter được test bằng `aws-sdk-client-mock`.
 
-**Tech Stack:** Node.js 24, TypeScript 7.0.2, pnpm 12.10.1 (workspaces + catalog), Vitest 5.0.3, zod 4.6.5, AWS SDK for JavaScript v3 (3.1149.0), Powertools for AWS Lambda Logger 2.36.0, ulid 3.0.2, Biome 2.5.15.
+**Tech Stack:** Node.js 24, TypeScript 7.0.2, pnpm 12.10.1 (workspaces + catalog), Vitest 5.0.3, zod 4.6.5, AWS SDK for JavaScript v3 (3.1146.0), Powertools for AWS Lambda Logger 2.36.0, ulid 3.0.2, Biome 2.5.15.
 
 **Spec:** [`docs/superpowers/specs/2026-10-10-serverless-blog-design.md`](../specs/2026-10-10-serverless-blog-design.md) — đọc mục 2 (Dữ liệu & API), 3 (Luồng publish & build), 4.3 (Cấu trúc code), 5.1–5.2 (Lỗi & bảo mật) trước khi bắt đầu.
 
@@ -16,6 +16,7 @@
 
 - Runtime: **Node.js 24** (Lambda `nodejs24.x` — Kế hoạch 4 xác nhận lại khi deploy). Máy local: `node -v` ≥ v24.
 - Package manager: **pnpm 12.10.1**, workspaces; phiên bản thư viện khai báo **một lần** trong `catalog:` của `pnpm-workspace.yaml`.
+- **Giữ `minimumReleaseAge` mặc định của pnpm, không dùng `minimumReleaseAgeExclude`**: chỉ chọn phiên bản thư viện đã phát hành đủ lâu (AWS SDK chốt ở bản đã ra ≥ 7 ngày).
 - TypeScript **7.0.2**, `strict` + `noUncheckedIndexedAccess`; source TS được import trực tiếp giữa các package (không bước build).
 - Lint/format: **Biome 2.5.15**. Test: **Vitest 5.0.3**.
 - `services/api/src/domain/**` **không được import** `@aws-sdk/*` hay bất kỳ thứ gì từ `adapters/`.
@@ -149,12 +150,12 @@ catalog:
   ulid: 3.0.2
   aws-sdk-client-mock: 4.1.0
   "@aws-lambda-powertools/logger": 2.36.0
-  "@aws-sdk/client-dynamodb": 3.1149.0
-  "@aws-sdk/lib-dynamodb": 3.1149.0
-  "@aws-sdk/client-sqs": 3.1149.0
-  "@aws-sdk/client-scheduler": 3.1149.0
-  "@aws-sdk/client-s3": 3.1149.0
-  "@aws-sdk/s3-presigned-post": 3.1149.0
+  "@aws-sdk/client-dynamodb": 3.1146.0
+  "@aws-sdk/lib-dynamodb": 3.1146.0
+  "@aws-sdk/client-sqs": 3.1146.0
+  "@aws-sdk/client-scheduler": 3.1146.0
+  "@aws-sdk/client-s3": 3.1146.0
+  "@aws-sdk/s3-presigned-post": 3.1146.0
 ```
 
 `tsconfig.base.json`:
