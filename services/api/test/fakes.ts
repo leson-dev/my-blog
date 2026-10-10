@@ -1,11 +1,13 @@
-import type { BuildState, ImageContentType, Post } from "@blog/shared";
+import type { BuildState, ImageContentType, Lang, Post, Tag } from "@blog/shared";
 import { DomainError } from "../src/domain/errors";
+import { slugEntries } from "../src/domain/post";
 import type {
   BuildQueue,
   BuildStatusRepository,
   Deps,
   PostRepository,
   PublishScheduler,
+  TagRepository,
   UploadSigner,
 } from "../src/usecases/ports";
 
@@ -24,7 +26,7 @@ export class InMemoryPostRepository implements PostRepository {
   }
 
   async create(post: Post) {
-    this.assertSlugFree(post.slug, post.id);
+    this.assertSlugsFree(post);
     this.items.set(post.id, structuredClone(post));
   }
 
@@ -33,7 +35,7 @@ export class InMemoryPostRepository implements PostRepository {
     if (!current || current.version !== prev.version) {
       throw new DomainError("VERSION_CONFLICT", "post was modified elsewhere");
     }
-    this.assertSlugFree(next.slug, next.id);
+    this.assertSlugsFree(next);
     this.items.set(next.id, structuredClone(next));
   }
 
@@ -41,12 +43,30 @@ export class InMemoryPostRepository implements PostRepository {
     this.items.delete(post.id);
   }
 
-  private assertSlugFree(slug: string, ownerId: string) {
-    for (const p of this.items.values()) {
-      if (p.slug === slug && p.id !== ownerId) {
-        throw new DomainError("SLUG_TAKEN", `slug "${slug}" is already used`);
-      }
+  /** Mirrors the site-wide SLUG#<slug> reservations of the DynamoDB repository. */
+  private assertSlugsFree(post: Post) {
+    const mine = slugEntries(post).map((e) => e.slug);
+    const taken = (slug: string) => new DomainError("SLUG_TAKEN", `slug "${slug}" is already used`);
+    const duplicate = mine.find((slug, i) => mine.indexOf(slug) !== i);
+    if (duplicate) throw taken(duplicate);
+    for (const other of this.items.values()) {
+      if (other.id === post.id) continue;
+      for (const { slug } of slugEntries(other)) if (mine.includes(slug)) throw taken(slug);
     }
+  }
+}
+
+export class InMemoryTagRepository implements TagRepository {
+  readonly items = new Map<string, Tag>();
+
+  async list() {
+    return [...this.items.values()]
+      .sort((a, b) => a.key.localeCompare(b.key))
+      .map((t) => structuredClone(t));
+  }
+
+  async put(tag: Tag) {
+    this.items.set(tag.key, structuredClone(tag));
   }
 }
 
@@ -76,21 +96,22 @@ export class RecordingBuildQueue implements BuildQueue {
   }
 }
 
+/** Keys are "<postId>:<lang>". */
 export class RecordingScheduler implements PublishScheduler {
   readonly scheduled = new Map<string, string>();
   readonly cancelled: string[] = [];
   failWith: Error | null = null;
   cancelFailWith: Error | null = null;
 
-  async schedule(postId: string, publishAt: string) {
+  async schedule(postId: string, lang: Lang, publishAt: string) {
     if (this.failWith) throw this.failWith;
-    this.scheduled.set(postId, publishAt);
+    this.scheduled.set(`${postId}:${lang}`, publishAt);
   }
 
-  async cancel(postId: string) {
+  async cancel(postId: string, lang: Lang) {
     if (this.cancelFailWith) throw this.cancelFailWith;
-    this.scheduled.delete(postId);
-    this.cancelled.push(postId);
+    this.scheduled.delete(`${postId}:${lang}`);
+    this.cancelled.push(`${postId}:${lang}`);
   }
 }
 
@@ -110,6 +131,7 @@ export class RecordingLog {
 
 export interface TestDeps extends Deps {
   posts: InMemoryPostRepository;
+  tags: InMemoryTagRepository;
   builds: FakeBuildStatusRepository;
   buildQueue: RecordingBuildQueue;
   scheduler: RecordingScheduler;
@@ -123,6 +145,7 @@ export function makeDeps(): TestDeps {
   const clock = { now: "2026-10-10T00:00:00.000Z" };
   return {
     posts: new InMemoryPostRepository(),
+    tags: new InMemoryTagRepository(),
     builds: new FakeBuildStatusRepository(),
     buildQueue: new RecordingBuildQueue(),
     scheduler: new RecordingScheduler(),

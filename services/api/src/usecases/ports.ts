@@ -1,14 +1,20 @@
-import type { BuildState, ImageContentType, Post } from "@blog/shared";
+import type { BuildState, ImageContentType, Lang, Post, Tag } from "@blog/shared";
 
 export interface PostRepository {
   get(id: string): Promise<Post | null>;
   /** Newest `updatedAt` first. */
   list(): Promise<Post[]>;
-  /** Throws DomainError SLUG_TAKEN when the slug is used by another post. */
+  /** Throws SLUG_TAKEN when any slug of the post is already used anywhere on the site. */
   create(post: Post): Promise<void>;
   /** Throws VERSION_CONFLICT when the stored version is not `prev.version`, SLUG_TAKEN on slug clash. */
   update(next: Post, prev: Post): Promise<void>;
   delete(post: Post): Promise<void>;
+}
+
+export interface TagRepository {
+  /** Tags that have names, sorted by key. */
+  list(): Promise<Tag[]>;
+  put(tag: Tag): Promise<void>;
 }
 
 export interface BuildStatusRepository {
@@ -22,10 +28,10 @@ export interface BuildQueue {
 }
 
 export interface PublishScheduler {
-  /** Creates or replaces the one-time schedule for the post. */
-  schedule(postId: string, publishAt: string): Promise<void>;
+  /** Creates or replaces the one-time schedule for one language version. */
+  schedule(postId: string, lang: Lang, publishAt: string): Promise<void>;
   /** Removes the schedule; succeeds when it does not exist. */
-  cancel(postId: string): Promise<void>;
+  cancel(postId: string, lang: Lang): Promise<void>;
 }
 
 export interface UploadSigner {
@@ -41,6 +47,7 @@ export interface Log {
 
 export interface Deps {
   posts: PostRepository;
+  tags: TagRepository;
   builds: BuildStatusRepository;
   buildQueue: BuildQueue;
   scheduler: PublishScheduler;
