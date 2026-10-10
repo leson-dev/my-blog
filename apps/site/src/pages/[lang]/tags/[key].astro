@@ -1,0 +1,30 @@
+---
+import { LANGS, type Lang } from "@blog/shared";
+import Archive from "../../../components/Archive.astro";
+import { t } from "../../../i18n";
+import Base from "../../../layouts/Base.astro";
+import { siteData } from "../../../lib/data";
+import { urls } from "../../../lib/urls";
+import { byYear, pagesWithTag, postPages, tagEntries, tagName } from "../../../lib/view";
+
+export function getStaticPaths() {
+  const { posts, tags } = siteData();
+  return LANGS.flatMap((ui) =>
+    tagEntries(postPages(posts, ui), tags, ui).map((entry) => ({
+      params: { lang: ui, key: entry.key },
+    })),
+  );
+}
+
+const ui = Astro.params.lang as Lang;
+const key = Astro.params.key as string;
+const { posts, tags } = siteData();
+const groups = byYear(pagesWithTag(postPages(posts, ui), key));
+const name = tagName(tags, key, ui);
+const other: Lang = ui === "vi" ? "ja" : "vi";
+---
+
+<Base ui={ui} title={`#${name} · ${t(ui).siteName}`} altUrl={urls.tag(other, key)}>
+  <h1 class="tag">#{name}</h1>
+  <Archive ui={ui} groups={groups} />
+</Base>

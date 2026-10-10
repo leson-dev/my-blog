@@ -1,0 +1,56 @@
+---
+import { readingMinutes, renderMarkdown } from "@blog/markdown";
+import { LANGS } from "@blog/shared";
+import LocalDate from "../../../components/LocalDate.astro";
+import { t } from "../../../i18n";
+import Base from "../../../layouts/Base.astro";
+import { siteData } from "../../../lib/data";
+import { urls } from "../../../lib/urls";
+import { type PostPage, postPages, tagName } from "../../../lib/view";
+
+export function getStaticPaths() {
+  return LANGS.flatMap((ui) =>
+    postPages(siteData().posts, ui).map((page) => ({
+      params: { lang: ui, slug: page.version.slug },
+      props: { page },
+    })),
+  );
+}
+
+interface Props {
+  page: PostPage;
+}
+
+const { page } = Astro.props;
+const { ui, lang, version, post } = page;
+const dict = t(ui);
+const html = await renderMarkdown(version.content);
+const minutes = readingMinutes(version.content, lang);
+const { tags } = siteData();
+---
+
+<Base ui={ui} title={`${version.title} · ${dict.siteName}`} altUrl={page.altUrl}>
+  <article lang={lang} data-pagefind-body>
+    {post.coverImage && <img class="post-cover" src={post.coverImage} alt="" />}
+    <h1 class="post-title">{version.title}</h1>
+    <p class="meta">
+      <LocalDate iso={version.publishedAt ?? version.updatedAt} />
+      {post.tags.map((key) => (
+        <>
+          {" · "}
+          <a class="tag" href={urls.tag(ui, key)}>#{tagName(tags, key, ui)}</a>
+        </>
+      ))}
+      {" · "}
+      {dict["post.minutes"](minutes)}
+    </p>
+    {page.translationUrl && (
+      <nav class="version-switch" data-version-switch aria-label={dict["post.readIn"]}>
+        {lang === "vi" ? <b>vi</b> : <a href={page.translationUrl} data-lang-switch="vi">vi</a>}
+        {lang === "ja" ? <b>日本語</b> : <a href={page.translationUrl} data-lang-switch="ja">日本語</a>}
+      </nav>
+    )}
+    {lang !== ui && <p class="notice">{dict["post.onlyIn"](lang)}</p>}
+    <div class="prose" set:html={html} />
+  </article>
+</Base>

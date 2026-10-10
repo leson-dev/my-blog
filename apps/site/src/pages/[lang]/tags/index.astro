@@ -1,0 +1,31 @@
+---
+import { LANGS, type Lang } from "@blog/shared";
+import { t } from "../../../i18n";
+import Base from "../../../layouts/Base.astro";
+import { siteData } from "../../../lib/data";
+import { urls } from "../../../lib/urls";
+import { postPages, tagEntries } from "../../../lib/view";
+
+export function getStaticPaths() {
+  return LANGS.map((lang) => ({ params: { lang } }));
+}
+
+const ui = Astro.params.lang as Lang;
+const dict = t(ui);
+const { posts, tags } = siteData();
+const entries = tagEntries(postPages(posts, ui), tags, ui);
+const other: Lang = ui === "vi" ? "ja" : "vi";
+---
+
+<Base ui={ui} title={`${dict["tags.title"]} · ${dict.siteName}`} altUrl={urls.tags(other)}>
+  <h1 class="year">{dict["tags.title"]}</h1>
+  <ul>
+    {entries.map((entry) => (
+      <li>
+        <a class="tag" href={entry.url}>#{entry.name}</a>
+        {" "}
+        <span class="meta">{dict["tags.count"](entry.count)}</span>
+      </li>
+    ))}
+  </ul>
+</Base>

@@ -55,3 +55,61 @@ describe("home pages", () => {
 });
 
 export { exists, read };
+
+describe("post pages", () => {
+  it("renders a Vietnamese post with highlighted code and no translation switch", () => {
+    const html = read("vi/posts/hoc-aws-lambda-tu-con-so-0/index.html");
+    expect(html).toContain("Học AWS Lambda từ con số 0");
+    expect(html).toContain("--shiki-dark");
+    expect(html).toContain("1 phút đọc");
+    expect(html).not.toContain("data-version-switch");
+  });
+
+  it("shows a Vietnamese-only post under /ja/ with a notice and the right lang", () => {
+    const html = read("ja/posts/hoc-aws-lambda-tu-con-so-0/index.html");
+    expect(html).toContain('<html lang="ja"');
+    expect(html).toContain('<article lang="vi"');
+    expect(html).toContain("この記事はベトナム語のみです。");
+  });
+
+  it("links both published versions of a translated post", () => {
+    const html = read("vi/posts/mua-thu-dau-tien-o-tokyo/index.html");
+    expect(html).toContain("data-version-switch");
+    expect(html).toContain('href="/ja/posts/tokyo-autumn/"');
+    expect(html).toContain('src="/media/2026/autumn.webp"');
+    expect(exists("ja/posts/tokyo-autumn/index.html")).toBe(true);
+  });
+
+  it("never publishes drafts or draft translations", () => {
+    expect(exists("vi/posts/ban-nhap/index.html")).toBe(false);
+    expect(exists("ja/posts/dynamodb-ja/index.html")).toBe(false);
+    const html = read("vi/posts/dynamodb-single-table-design/index.html");
+    expect(html).not.toContain("data-version-switch");
+    expect(exists("ja/posts/dynamodb-single-table-design/index.html")).toBe(true);
+  });
+});
+
+describe("tag pages and 404", () => {
+  it("lists tags with names per language and counts", () => {
+    const html = read("vi/tags/index.html");
+    expect(html).toContain("đời sống");
+    expect(html).toContain('href="/vi/tags/aws/"');
+    expect(html).toContain("2 bài");
+  });
+
+  it("lists posts of a tag under its localized name", () => {
+    const html = read("ja/tags/life/index.html");
+    expect(html).toContain("暮らし");
+    expect(html).toContain("東京で迎える初めての秋");
+    expect(html).toContain("日本語のメモ");
+    expect(html).not.toContain("Học AWS Lambda");
+  });
+
+  it("has a bilingual 404 page", () => {
+    const html = read("404.html");
+    expect(html).toContain('href="/vi/"');
+    expect(html).toContain('href="/ja/"');
+    expect(html).toContain("ページが見つかりません");
+    expect(html).toContain("Không tìm thấy trang");
+  });
+});
