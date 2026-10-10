@@ -1,7 +1,7 @@
 # Thiết kế: Blog cá nhân serverless — oki-dev.xyz
 
 - **Ngày:** 2026-10-10
-- **Trạng thái:** Đang thiết kế — Phần 1–3/5 đã duyệt
+- **Trạng thái:** Đang thiết kế — Phần 1–4/5 đã duyệt
 - **Tác giả:** Son Nguyen
 
 ---
@@ -282,9 +282,93 @@ Cấu hình: container image, 2048 MB RAM, timeout 5 phút, ephemeral storage `/
 
 `astro build` ~10–20 s; tính cả cold start container, đồng bộ S3 và CloudFront invalidation → **bấm Publish đến khi bài hiện trên site: khoảng 30–60 giây**.
 
-## 4. Trang quản trị & site đọc
+## 4. Site đọc, trang quản trị & cấu trúc code ✅
 
-_Chưa thiết kế._
+### 4.1 Site đọc (Astro) — `blog.oki-dev.xyz`
+
+#### Trang
+
+| Đường dẫn | Nội dung |
+|---|---|
+| `/` | Bài mới nhất, 10 bài/trang (`/page/2`, …) |
+| `/posts/<slug>` | Bài viết: tiêu đề, ngày, tag, ảnh bìa, nội dung |
+| `/tags`, `/tags/<tag>` | Danh sách tag; bài theo tag |
+| `/search` | Tìm kiếm (Pagefind) |
+| `/404` | Không tìm thấy |
+
+#### Tốc độ & độ mượt
+
+- **View Transitions** (`<ClientRouter />`) — chuyển trang kiểu SPA, không trắng trang.
+- **Prefetch khi rê chuột** vào link.
+- **Gần như không JavaScript**; chỉ `/search` tải Pagefind.
+- **Shiki** tô màu code lúc build.
+- Ảnh `loading="lazy"`; trang quản trị **thu nhỏ ảnh trước khi upload** (cạnh dài tối đa 1600px, WebP).
+- Giao diện sáng/tối theo hệ điều hành.
+- **Cache:** `/_astro/*` (tên file có hash) → `Cache-Control: public, max-age=31536000, immutable`. HTML → trình duyệt `max-age=0, must-revalidate`; CloudFront cache lâu dài, chỉ làm mới khi invalidate sau mỗi build.
+
+#### Ngày giờ
+
+Hiển thị **theo múi giờ máy người đọc**. HTML chứa `<time datetime="<UTC ISO>">` kèm ngày dự phòng; một script inline nhỏ định dạng lại bằng `Intl.DateTimeFormat` trước khi hiển thị và chạy lại sau mỗi lần chuyển trang (sự kiện `astro:page-load`).
+
+### 4.2 Trang quản trị (React + Vite) — `admin.oki-dev.xyz`
+
+#### Đăng nhập
+
+**Cognito Managed Login**, OAuth 2.0 authorization code + PKCE. Không tự làm form mật khẩu/MFA.
+
+#### Màn hình
+
+| Màn hình | Chức năng |
+|---|---|
+| Danh sách bài | Lọc theo trạng thái, tìm theo tiêu đề, xem thời gian sửa/giờ hẹn |
+| Soạn bài | Markdown (trái) + xem trước (phải). Tiêu đề; slug tự sinh từ tiêu đề, bỏ dấu tiếng Việt (`"Học AWS"` → `hoc-aws`), sửa được; tag có gợi ý; tóm tắt; ảnh bìa |
+| Chèn ảnh | Kéo-thả / dán ảnh → thu nhỏ → upload (presigned POST) → tự chèn `![](url)` |
+| Hộp thoại Publish | "Đăng ngay" hoặc "Hẹn giờ" + chọn múi giờ VN/JP (mục 3.2) |
+| Thanh trạng thái build | Đang build / thành công / thất bại + nút "Build lại" |
+
+#### Lưu bài
+
+- **Bản nháp & bài đang hẹn giờ:** tự lưu sau 3 giây kể từ lần gõ cuối.
+- **Bài đã đăng:** không tự lưu; bấm **"Cập nhật"** (tránh mỗi lần gõ sinh một build và đưa nội dung dở dang lên site).
+- API trả `409` (bài đã bị sửa ở tab khác) → báo xung đột, cho chọn tải lại bản mới hoặc ghi đè.
+
+#### Xem trước khớp bài thật
+
+Site đọc và trang quản trị **dùng chung package `markdown`** (remark/rehype + Shiki) để chuyển Markdown → HTML.
+
+### 4.3 Cấu trúc code — monorepo pnpm workspaces
+
+```
+my-blog/
+├── apps/
+│   ├── site/          # Astro — site đọc (đóng gói vào image Lambda Build)
+│   └── admin/         # React + Vite — trang quản trị
+├── services/
+│   ├── api/           # Lambda API + handler lịch hẹn
+│   ├── build/         # Lambda Build: Dockerfile + handler (astro build, đồng bộ S3, invalidate)
+│   └── notifier/      # Lambda gửi cảnh báo Discord
+├── packages/
+│   ├── shared/        # Kiểu Post, trạng thái, schema (zod) dùng chung
+│   └── markdown/      # Markdown → HTML, dùng chung site + admin
+├── infra/             # CDK app (TypeScript)
+└── docs/
+```
+
+#### Phân lớp trong `services/api`
+
+Không áp dụng DDD đầy đủ (miền nghiệp vụ nhỏ: một khái niệm chính là bài viết). Mượn ý tưởng **tách logic nghiệp vụ khỏi AWS** (kiểu hexagonal nhẹ):
+
+```
+services/api/src/
+├── domain/      # Hàm thuần, KHÔNG import AWS SDK: chuyển trạng thái bài, kiểm tra hợp lệ, sinh slug
+├── usecases/    # Điều phối: đọc → gọi domain → ghi → gửi build / tạo lịch
+├── adapters/    # DynamoDB (postRepo), SQS (buildQueue), EventBridge Scheduler (scheduler)
+└── handlers/    # Nhận event API Gateway / Scheduler → gọi use case → trả kết quả
+```
+
+- `domain/` test thuần, không cần AWS hay mock.
+- Đổi hạ tầng chỉ đụng `adapters/`.
+- Các app/service còn lại giữ cấu trúc đơn giản.
 
 ## 5. Xử lý lỗi, bảo mật, kiểm thử & CI/CD
 
