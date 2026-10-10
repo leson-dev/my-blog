@@ -80,6 +80,7 @@ export class RecordingScheduler implements PublishScheduler {
   readonly scheduled = new Map<string, string>();
   readonly cancelled: string[] = [];
   failWith: Error | null = null;
+  cancelFailWith: Error | null = null;
 
   async schedule(postId: string, publishAt: string) {
     if (this.failWith) throw this.failWith;
@@ -87,6 +88,7 @@ export class RecordingScheduler implements PublishScheduler {
   }
 
   async cancel(postId: string) {
+    if (this.cancelFailWith) throw this.cancelFailWith;
     this.scheduled.delete(postId);
     this.cancelled.push(postId);
   }
@@ -98,11 +100,20 @@ export class FakeUploadSigner implements UploadSigner {
   }
 }
 
+export class RecordingLog {
+  readonly errors: Array<{ message: string; attributes: Record<string, unknown> }> = [];
+
+  error(message: string, attributes: Record<string, unknown>) {
+    this.errors.push({ message, attributes });
+  }
+}
+
 export interface TestDeps extends Deps {
   posts: InMemoryPostRepository;
   builds: FakeBuildStatusRepository;
   buildQueue: RecordingBuildQueue;
   scheduler: RecordingScheduler;
+  log: RecordingLog;
   /** Change to move the fake clock. */
   clock: { now: string };
 }
@@ -116,6 +127,7 @@ export function makeDeps(): TestDeps {
     buildQueue: new RecordingBuildQueue(),
     scheduler: new RecordingScheduler(),
     uploads: new FakeUploadSigner(),
+    log: new RecordingLog(),
     clock,
     now: () => clock.now,
     newId: () => `01J${String(++seq).padStart(23, "0")}`,

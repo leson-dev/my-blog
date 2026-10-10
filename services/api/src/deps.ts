@@ -10,9 +10,9 @@ import { S3UploadSigner } from "./adapters/s3/uploadSigner";
 import { EventBridgePublishScheduler } from "./adapters/scheduler/publishScheduler";
 import { SqsBuildQueue } from "./adapters/sqs/buildQueue";
 import type { Config } from "./config";
-import type { Deps } from "./usecases/ports";
+import type { Deps, Log } from "./usecases/ports";
 
-export function createDeps(config: Config): Deps {
+export function createDeps(config: Config, log: Log): Deps {
   const db = DynamoDBDocumentClient.from(new DynamoDBClient({}));
   return {
     posts: new DynamoPostRepository(db, config.TABLE_NAME),
@@ -24,6 +24,7 @@ export function createDeps(config: Config): Deps {
       roleArn: config.SCHEDULER_ROLE_ARN,
     }),
     uploads: new S3UploadSigner(new S3Client({}), config.MEDIA_BUCKET),
+    log,
     now: () => new Date().toISOString(),
     newId: () => ulid(),
     blogBaseUrl: config.BLOG_BASE_URL,

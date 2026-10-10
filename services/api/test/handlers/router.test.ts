@@ -130,6 +130,68 @@ describe("handleHttp", () => {
   });
 });
 
+describe("e2e account and live content", () => {
+  const setup = async () => {
+    const deps = makeDeps();
+    const created = parse(
+      await handleHttp(httpEvent("POST /posts", { body: { title: "Live" } }), deps, log()),
+    );
+    return { deps, id: created.id as string };
+  };
+  const edit = (version: number) => ({
+    title: "Hacked",
+    slug: "live",
+    excerpt: "",
+    content: "",
+    tags: [],
+    coverImage: null,
+    version,
+  });
+
+  it("may edit and delete its own drafts", async () => {
+    const { deps, id } = await setup();
+    const put = await handleHttp(
+      httpEvent("PUT /posts/{id}", { id, body: edit(1), groups: "[e2e]" }),
+      deps,
+      log(),
+    );
+    expect(put.statusCode).toBe(200);
+    const del = await handleHttp(
+      httpEvent("DELETE /posts/{id}", { id, groups: "[e2e]" }),
+      deps,
+      log(),
+    );
+    expect(del.statusCode).toBe(204);
+  });
+
+  it.each([
+    ["published", {}],
+    ["scheduled", { publishAt: "2026-10-12T08:00:00Z" }],
+  ])("cannot edit or delete a %s post", async (_status, publishBody) => {
+    const { deps, id } = await setup();
+    const live = parse(
+      await handleHttp(
+        httpEvent("POST /posts/{id}/publish", { id, body: publishBody }),
+        deps,
+        log(),
+      ),
+    );
+    const put = await handleHttp(
+      httpEvent("PUT /posts/{id}", { id, body: edit(live.version), groups: "[e2e]" }),
+      deps,
+      log(),
+    );
+    expect(put.statusCode).toBe(403);
+    const del = await handleHttp(
+      httpEvent("DELETE /posts/{id}", { id, groups: "[e2e]" }),
+      deps,
+      log(),
+    );
+    expect(del.statusCode).toBe(403);
+    expect((await deps.posts.get(id))?.title).toBe("Live");
+  });
+});
+
 describe("groupsOf", () => {
   it.each([
     [undefined, []],

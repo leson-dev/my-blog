@@ -35,12 +35,17 @@ export interface UploadSigner {
   ): Promise<{ url: string; fields: Record<string, string> }>;
 }
 
+export interface Log {
+  error(message: string, attributes: Record<string, unknown>): void;
+}
+
 export interface Deps {
   posts: PostRepository;
   builds: BuildStatusRepository;
   buildQueue: BuildQueue;
   scheduler: PublishScheduler;
   uploads: UploadSigner;
+  log: Log;
   now: () => string;
   newId: () => string;
   /** e.g. "https://blog.oki-dev.xyz", no trailing slash */

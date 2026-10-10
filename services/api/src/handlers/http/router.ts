@@ -8,16 +8,12 @@ import type { APIGatewayProxyEventV2WithJWTAuthorizer } from "aws-lambda";
 import { ZodError } from "zod";
 import { DomainError } from "../../domain/errors";
 import { getLatestBuild, triggerBuild } from "../../usecases/builds";
-import type { Deps } from "../../usecases/ports";
+import type { Deps, Log } from "../../usecases/ports";
 import { createPost, deletePost, getPost, listPosts, updatePost } from "../../usecases/posts";
 import { publishPost, unpublishPost } from "../../usecases/publishing";
 import { createUpload } from "../../usecases/uploads";
 import { isE2EUser } from "./auth";
 import { errorResponse, type HttpResult, json, noContent } from "./response";
-
-export interface Log {
-  error(message: string, attributes: Record<string, unknown>): void;
-}
 
 interface RouteContext {
   deps: Deps;
@@ -40,12 +36,12 @@ const routes: Record<string, Route> = {
   },
   "GET /posts/{id}": { run: async ({ deps, id }) => json(200, await getPost(deps, id())) },
   "PUT /posts/{id}": {
-    run: async ({ deps, id, body }) =>
-      json(200, await updatePost(deps, id(), updatePostInputSchema.parse(body))),
+    run: async ({ deps, id, body, e2e }) =>
+      json(200, await updatePost(deps, id(), updatePostInputSchema.parse(body), { e2e })),
   },
   "DELETE /posts/{id}": {
-    run: async ({ deps, id }) => {
-      await deletePost(deps, id());
+    run: async ({ deps, id, e2e }) => {
+      await deletePost(deps, id(), { e2e });
       return noContent();
     },
   },

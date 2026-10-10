@@ -11,7 +11,7 @@ const logger = new Logger({ serviceName: "blog-api" });
 let deps: Deps | undefined;
 
 export async function handler(event: unknown) {
-  deps ??= createDeps(loadConfig(process.env));
+  deps ??= createDeps(loadConfig(process.env), logger);
   if (isScheduledPublishEvent(event)) {
     await handleScheduled(event, deps);
     return;
