@@ -54,7 +54,7 @@ describe("EventBridgePublishScheduler.schedule", () => {
   it("updates the schedule when it already exists", async () => {
     client
       .on(CreateScheduleCommand)
-      .rejects(new ConflictException({ message: "exists", $metadata: {} }));
+      .rejects(new ConflictException({ message: "exists", Message: "exists", $metadata: {} }));
     client.on(UpdateScheduleCommand).resolves({});
     await scheduler.schedule("P1", "2026-10-13T08:00:00.000Z");
     expect(client.commandCalls(UpdateScheduleCommand)[0]?.args[0].input.ScheduleExpression).toBe(
@@ -76,7 +76,7 @@ describe("EventBridgePublishScheduler.cancel", () => {
   it("succeeds when the schedule is already gone", async () => {
     client
       .on(DeleteScheduleCommand)
-      .rejects(new ResourceNotFoundException({ message: "gone", $metadata: {} }));
+      .rejects(new ResourceNotFoundException({ message: "gone", Message: "gone", $metadata: {} }));
     await expect(scheduler.cancel("P1")).resolves.toBeUndefined();
   });
 });
