@@ -38,9 +38,7 @@ Diagram:
         - DnsTls
 
     Edge:
-      Type: AWS::Diagram::Resource
-      Preset: Generic group
-      Title: CloudFront (edge)
+      Type: AWS::Diagram::HorizontalStack
       Children:
         - CFBlog
         - CFAdmin
@@ -71,7 +69,7 @@ Diagram:
 
     Tokyo:
       Type: AWS::Region
-      Title: ap-northeast-1 (Tokyo)
+      Title: ap-northeast-1
       Direction: vertical
       Children:
         - Row1
@@ -170,7 +168,7 @@ Diagram:
       Labels:
         TargetRight: {Title: JWT}
     - Source: CFBlog
-      SourcePosition: S
+      SourcePosition: W
       Target: S3Site
       TargetPosition: N
       Type: orthogonal
@@ -240,7 +238,7 @@ Diagram:
       Labels:
         SourceLeft: {Title: đọc bài}
     - Source: BuildFn
-      SourcePosition: N
+      SourcePosition: W
       Target: S3Site
       TargetPosition: S
       Type: orthogonal
@@ -248,8 +246,11 @@ Diagram:
       Labels:
         SourceLeft: {Title: ghi HTML}
     - Source: BuildFn
+      SourcePosition: N
       Target: CFBlog
+      TargetPosition: WSW
+      Type: orthogonal
       LineStyle: dashed
       TargetArrowHead: {Type: Open}
       Labels:
-        SourceLeft: {Title: invalidate}
+        SourceRight: {Title: invalidate}
