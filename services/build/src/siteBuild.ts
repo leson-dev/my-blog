@@ -1,5 +1,5 @@
 import { execFile } from "node:child_process";
-import { existsSync, rmSync } from "node:fs";
+import { existsSync, mkdirSync, rmSync, symlinkSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { promisify } from "node:util";
@@ -16,6 +16,17 @@ export interface SiteBuildOptions {
   outDir: string;
   /** Writable cache directory for Astro and Vite. */
   cacheDir: string;
+}
+
+/**
+ * Prepares the writable target of the image's `apps/site/.astro` symlink. Astro writes its
+ * prerender chunks there and imports them with Node, which resolves packages from the chunk's
+ * real path (/tmp/...): a node_modules link back to the site makes those imports resolve.
+ */
+export function prepareDotAstro(dotAstroDir: string, siteDir: string): void {
+  mkdirSync(dotAstroDir, { recursive: true });
+  const link = join(dotAstroDir, "node_modules");
+  if (!existsSync(link)) symlinkSync(join(siteDir, "node_modules"), link, "dir");
 }
 
 /**

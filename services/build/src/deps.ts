@@ -7,7 +7,7 @@ import type { Config } from "./config";
 import { exportSiteData } from "./exportData";
 import { invalidateAll } from "./invalidate";
 import type { BuildDeps } from "./runBuild";
-import { runSiteBuild } from "./siteBuild";
+import { prepareDotAstro, runSiteBuild } from "./siteBuild";
 import { DynamoBuildStatus } from "./status";
 import { syncToS3 } from "./syncSite";
 
@@ -19,7 +19,7 @@ export function createDeps(config: Config, log: BuildDeps["log"]): BuildDeps {
     now: () => new Date().toISOString(),
     status: new DynamoBuildStatus(db, config.TABLE_NAME),
     prepare: () => {
-      mkdirSync(config.DOT_ASTRO_DIR, { recursive: true });
+      prepareDotAstro(config.DOT_ASTRO_DIR, config.SITE_DIR);
       mkdirSync(config.CACHE_DIR, { recursive: true });
     },
     exportData: (dir) => exportSiteData(db, config.TABLE_NAME, dir),

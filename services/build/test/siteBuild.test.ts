@@ -1,8 +1,8 @@
-import { cpSync, existsSync, mkdtempSync, readFileSync } from "node:fs";
+import { cpSync, existsSync, lstatSync, mkdtempSync, readFileSync, readlinkSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { describe, expect, it } from "vitest";
-import { runSiteBuild } from "../src/siteBuild";
+import { prepareDotAstro, runSiteBuild } from "../src/siteBuild";
 
 const siteDir = resolve(__dirname, "../../../apps/site");
 const temp = (prefix: string) => mkdtempSync(join(tmpdir(), prefix));
@@ -31,5 +31,17 @@ describe("runSiteBuild", () => {
       "Học AWS Lambda từ con số 0",
     );
     expect(existsSync(join(outDir, "pagefind/pagefind.js"))).toBe(true);
+  });
+});
+
+describe("prepareDotAstro", () => {
+  it("creates the .astro target with a node_modules link so prerender chunks resolve packages", () => {
+    const dotAstro = join(temp("dot-"), "astro-dot");
+    prepareDotAstro(dotAstro, siteDir);
+    prepareDotAstro(dotAstro, siteDir); // idempotent
+
+    const link = join(dotAstro, "node_modules");
+    expect(lstatSync(link).isSymbolicLink()).toBe(true);
+    expect(readlinkSync(link)).toBe(join(siteDir, "node_modules"));
   });
 });
