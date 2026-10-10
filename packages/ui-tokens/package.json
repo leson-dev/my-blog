@@ -1,0 +1,14 @@
+{
+  "name": "@blog/ui-tokens",
+  "version": "0.0.0",
+  "private": true,
+  "exports": {
+    "./tokens.css": "./tokens.css",
+    "./fonts.css": "./fonts.css"
+  },
+  "dependencies": {
+    "@fontsource/be-vietnam-pro": "catalog:",
+    "@fontsource/jetbrains-mono": "catalog:",
+    "@fontsource/noto-sans-jp": "catalog:"
+  }
+}

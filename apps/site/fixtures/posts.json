@@ -1,0 +1,122 @@
+[
+  {
+    "id": "P1",
+    "tags": ["aws"],
+    "coverImage": null,
+    "createdAt": "2026-10-11T00:00:00.000Z",
+    "updatedAt": "2026-10-12T01:00:00.000Z",
+    "version": 3,
+    "versions": {
+      "vi": {
+        "slug": "hoc-aws-lambda-tu-con-so-0",
+        "title": "Học AWS Lambda từ con số 0",
+        "excerpt": "Ghi chép khi chuyển blog sang serverless.",
+        "content": "## Hàm đầu tiên\n\nKhi chuyển blog sang serverless, việc đầu tiên mình làm là viết một hàm Lambda.\n\n```ts\nexport const handler = async () => ({ statusCode: 200 });\n```\n",
+        "status": "published",
+        "publishAt": null,
+        "publishedAt": "2026-10-12T01:00:00.000Z",
+        "updatedAt": "2026-10-12T01:00:00.000Z"
+      }
+    }
+  },
+  {
+    "id": "P2",
+    "tags": ["life"],
+    "coverImage": "/media/2026/autumn.webp",
+    "createdAt": "2026-10-07T00:00:00.000Z",
+    "updatedAt": "2026-10-08T10:00:00.000Z",
+    "version": 5,
+    "versions": {
+      "vi": {
+        "slug": "mua-thu-dau-tien-o-tokyo",
+        "title": "Mùa thu đầu tiên ở Tokyo",
+        "excerpt": "Lá đỏ và những chuyến đi bộ cuối tuần.",
+        "content": "Mùa lá đỏ đang đến gần. Cuối tuần mình đi bộ lên núi Takao.\n",
+        "status": "published",
+        "publishAt": null,
+        "publishedAt": "2026-10-08T09:00:00.000Z",
+        "updatedAt": "2026-10-08T09:00:00.000Z"
+      },
+      "ja": {
+        "slug": "tokyo-autumn",
+        "title": "東京で迎える初めての秋",
+        "excerpt": "紅葉と週末の散歩。",
+        "content": "紅葉の季節が近づいてきました。週末は高尾山まで歩いてみました。\n",
+        "status": "published",
+        "publishAt": null,
+        "publishedAt": "2026-10-08T10:00:00.000Z",
+        "updatedAt": "2026-10-08T10:00:00.000Z"
+      }
+    }
+  },
+  {
+    "id": "P3",
+    "tags": ["life"],
+    "coverImage": null,
+    "createdAt": "2025-12-30T00:00:00.000Z",
+    "updatedAt": "2025-12-30T00:00:00.000Z",
+    "version": 2,
+    "versions": {
+      "ja": {
+        "slug": "nihongo-memo",
+        "title": "日本語のメモ",
+        "excerpt": "",
+        "content": "日本語の勉強メモです。\n",
+        "status": "published",
+        "publishAt": null,
+        "publishedAt": "2025-12-30T00:00:00.000Z",
+        "updatedAt": "2025-12-30T00:00:00.000Z"
+      }
+    }
+  },
+  {
+    "id": "P4",
+    "tags": ["aws"],
+    "coverImage": null,
+    "createdAt": "2026-10-09T00:00:00.000Z",
+    "updatedAt": "2026-10-09T00:00:00.000Z",
+    "version": 1,
+    "versions": {
+      "vi": {
+        "slug": "ban-nhap",
+        "title": "Bản nháp bí mật",
+        "excerpt": "",
+        "content": "Chưa xong.\n",
+        "status": "draft",
+        "publishAt": null,
+        "publishedAt": null,
+        "updatedAt": "2026-10-09T00:00:00.000Z"
+      }
+    }
+  },
+  {
+    "id": "P5",
+    "tags": ["aws"],
+    "coverImage": null,
+    "createdAt": "2025-11-01T00:00:00.000Z",
+    "updatedAt": "2025-11-03T00:00:00.000Z",
+    "version": 4,
+    "versions": {
+      "vi": {
+        "slug": "dynamodb-single-table-design",
+        "title": "DynamoDB single-table design",
+        "excerpt": "",
+        "content": "Một bảng cho tất cả.\n",
+        "status": "published",
+        "publishAt": null,
+        "publishedAt": "2025-11-02T00:00:00.000Z",
+        "updatedAt": "2025-11-02T00:00:00.000Z"
+      },
+      "ja": {
+        "slug": "dynamodb-ja",
+        "title": "DynamoDB シングルテーブル設計",
+        "excerpt": "",
+        "content": "翻訳中。\n",
+        "status": "draft",
+        "publishAt": null,
+        "publishedAt": null,
+        "updatedAt": "2025-11-03T00:00:00.000Z"
+      }
+    }
+  }
+]

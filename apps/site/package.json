@@ -1,0 +1,25 @@
+{
+  "name": "@blog/site",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "astro dev",
+    "build": "astro build && pagefind --site dist",
+    "typecheck": "tsc -p tsconfig.json",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@blog/markdown": "workspace:*",
+    "@blog/shared": "workspace:*",
+    "@blog/ui-tokens": "workspace:*",
+    "astro": "catalog:",
+    "zod": "catalog:"
+  },
+  "devDependencies": {
+    "@types/node": "catalog:",
+    "pagefind": "catalog:",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
+  }
+}
