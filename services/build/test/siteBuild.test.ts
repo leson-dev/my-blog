@@ -15,6 +15,7 @@ describe("runSiteBuild", () => {
         dataDir: temp("no-data-"),
         outDir: temp("out-"),
         cacheDir: temp("cache-"),
+        deadline: Date.now() + 60_000,
       }),
     ).rejects.toThrow(/site data missing: .*posts\.json/);
   });
@@ -24,13 +25,35 @@ describe("runSiteBuild", () => {
     cpSync(join(siteDir, "fixtures"), dataDir, { recursive: true });
     const outDir = join(temp("out-"), "dist");
 
-    const result = await runSiteBuild({ siteDir, dataDir, outDir, cacheDir: temp("cache-") });
+    const result = await runSiteBuild({
+      siteDir,
+      dataDir,
+      outDir,
+      cacheDir: temp("cache-"),
+      deadline: Date.now() + 120_000,
+    });
 
     expect(result).toBe(outDir);
     expect(readFileSync(join(outDir, "index.html"), "utf8")).toContain(
       "Học AWS Lambda từ con số 0",
     );
     expect(existsSync(join(outDir, "pagefind/pagefind.js"))).toBe(true);
+  });
+});
+
+describe("runSiteBuild deadline", () => {
+  it("kills a build that runs past the deadline and says so", async () => {
+    const dataDir = temp("data-");
+    cpSync(join(siteDir, "fixtures"), dataDir, { recursive: true });
+    await expect(
+      runSiteBuild({
+        siteDir,
+        dataDir,
+        outDir: join(temp("out-"), "dist"),
+        cacheDir: temp("cache-"),
+        deadline: Date.now() + 50,
+      }),
+    ).rejects.toThrow(/timed out/);
   });
 });
 

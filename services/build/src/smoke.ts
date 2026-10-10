@@ -21,6 +21,7 @@ const outDir = await runSiteBuild({
   dataDir,
   outDir: config.OUT_DIR,
   cacheDir: config.CACHE_DIR,
+  deadline: Date.now() + 240_000,
 });
 const pages = readdirSync(outDir, { recursive: true }).filter((p) => String(p).endsWith(".html"));
 console.log(`smoke ok: ${pages.length} pages`);

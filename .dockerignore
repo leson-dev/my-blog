@@ -6,3 +6,5 @@
 .superpowers
 .claude
 docs
+**/.env
+**/.env.*

@@ -9,9 +9,11 @@ export interface BuildDeps {
   /** Creates the writable directories the build needs. */
   prepare(): void;
   exportData(dir: string): Promise<{ posts: number; tags: number }>;
-  buildSite(dataDir: string): Promise<string>;
+  buildSite(dataDir: string, deadline: number): Promise<string>;
   sync(distDir: string): Promise<SyncPlan>;
-  invalidate(reference: string): Promise<void>;
+  /** Resolves true once the CloudFront invalidation has completed. */
+  invalidate(reference: string): Promise<boolean>;
+  removeStaleAssets(keys: string[]): Promise<void>;
   log: {
     info(message: string, attributes: Record<string, unknown>): void;
     error(message: string, attributes: Record<string, unknown>): void;
@@ -20,15 +22,29 @@ export interface BuildDeps {
   dataDir: string;
 }
 
-/** One build. The S3 site is only touched after the site build succeeded. */
-export async function runBuild(deps: BuildDeps, reference: string): Promise<void> {
+/**
+ * One build. The S3 site is only touched after the site build succeeded; old hashed assets
+ * are removed only once no cached HTML can reference them any more.
+ * `deadline` (epoch ms) bounds the site build so a hang is recorded as a failure.
+ */
+export async function runBuild(
+  deps: BuildDeps,
+  reference: string,
+  deadline: number,
+): Promise<void> {
   await deps.status.set("running", deps.now());
   try {
     deps.prepare();
     const counts = await deps.exportData(deps.dataDir);
-    const distDir = await deps.buildSite(deps.dataDir);
+    const distDir = await deps.buildSite(deps.dataDir, deadline);
     const plan = await deps.sync(distDir);
-    await deps.invalidate(reference);
+    if (await deps.invalidate(reference)) {
+      await deps.removeStaleAssets(plan.staleAssets);
+    } else {
+      deps.log.info("invalidation still running; old hashed assets kept until the next build", {
+        staleAssets: plan.staleAssets.length,
+      });
+    }
     await deps.status.set("success", deps.now());
     deps.log.info("build finished", {
       ...counts,

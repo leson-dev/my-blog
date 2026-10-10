@@ -17,16 +17,25 @@ const makeDeps = (overrides: Partial<BuildDeps> = {}) => {
       events.push("export");
       return { posts: 5, tags: 1 };
     },
-    buildSite: async (dataDir) => {
-      events.push(`build:${dataDir}`);
+    buildSite: async (dataDir, deadline) => {
+      events.push(`build:${dataDir}:${deadline}`);
       return "/tmp/site-dist";
     },
     sync: async () => {
       events.push("sync");
-      return { assets: ["a.css"], pages: ["index.html"], deletes: [] };
+      return {
+        assets: ["a.css"],
+        pages: ["index.html"],
+        deletes: [],
+        staleAssets: ["_astro/old.css"],
+      };
     },
     invalidate: async (reference) => {
       events.push(`invalidate:${reference}`);
+      return true;
+    },
+    removeStaleAssets: async (keys) => {
+      events.push(`removeStale:${keys.join(",")}`);
     },
     log: { info: vi.fn(), error: vi.fn() },
     dataDir: "/tmp/site-data",
@@ -38,16 +47,24 @@ const makeDeps = (overrides: Partial<BuildDeps> = {}) => {
 describe("runBuild", () => {
   it("runs every step in order and reports success", async () => {
     const { deps, events } = makeDeps();
-    await runBuild(deps, "msg-1");
+    await runBuild(deps, "msg-1", 123);
     expect(events).toEqual([
       "status:running",
       "prepare",
       "export",
-      "build:/tmp/site-data",
+      "build:/tmp/site-data:123",
       "sync",
       "invalidate:msg-1",
+      "removeStale:_astro/old.css",
       "status:success",
     ]);
+  });
+
+  it("keeps old hashed assets when the invalidation has not completed yet", async () => {
+    const { deps, events } = makeDeps({ invalidate: async () => false });
+    await runBuild(deps, "msg-1", 123);
+    expect(events.some((e) => e.startsWith("removeStale"))).toBe(false);
+    expect(events.at(-1)).toBe("status:success");
   });
 
   it("records the failure, keeps the old site and rethrows when the site build fails", async () => {
@@ -58,7 +75,7 @@ describe("runBuild", () => {
         );
       },
     });
-    await expect(runBuild(deps, "msg-1")).rejects.toThrow("Command failed");
+    await expect(runBuild(deps, "msg-1", 123)).rejects.toThrow("Command failed");
     expect(events).not.toContain("sync");
     expect(events.some((e) => e.startsWith("invalidate"))).toBe(false);
     expect(statuses.at(-1)?.status).toBe("failed");
@@ -71,7 +88,7 @@ describe("runBuild", () => {
         throw new Error("x".repeat(5000));
       },
     });
-    await expect(runBuild(deps, "m")).rejects.toThrow();
+    await expect(runBuild(deps, "m", 123)).rejects.toThrow();
     expect(statuses.at(-1)?.error).toHaveLength(1000);
   });
 });

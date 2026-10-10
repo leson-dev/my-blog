@@ -16,6 +16,8 @@ export interface SiteBuildOptions {
   outDir: string;
   /** Writable cache directory for Astro and Vite. */
   cacheDir: string;
+  /** Epoch ms after which the build is killed (leaves time to record the failure). */
+  deadline: number;
 }
 
 /**
@@ -41,6 +43,17 @@ export async function runSiteBuild(opts: SiteBuildOptions): Promise<string> {
   }
   rmSync(opts.outDir, { recursive: true, force: true });
 
+  const step = async (script: string, args: string[]) => {
+    const timeout = Math.max(1, opts.deadline - Date.now());
+    try {
+      await run(process.execPath, [join(opts.siteDir, script), ...args], { ...options, timeout });
+    } catch (err) {
+      if ((err as { killed?: boolean }).killed) {
+        throw new Error(`site build timed out: ${script} ${args.join(" ")}`);
+      }
+      throw err;
+    }
+  };
   const options = {
     cwd: opts.siteDir,
     maxBuffer: MAX_OUTPUT,
@@ -53,15 +66,7 @@ export async function runSiteBuild(opts: SiteBuildOptions): Promise<string> {
       HOME: tmpdir(),
     },
   };
-  await run(
-    process.execPath,
-    [join(opts.siteDir, "node_modules/astro/bin/astro.mjs"), "build"],
-    options,
-  );
-  await run(
-    process.execPath,
-    [join(opts.siteDir, "node_modules/pagefind/lib/runner/bin.cjs"), "--site", opts.outDir],
-    options,
-  );
+  await step("node_modules/astro/bin/astro.mjs", ["build"]);
+  await step("node_modules/pagefind/lib/runner/bin.cjs", ["--site", opts.outDir]);
   return opts.outDir;
 }

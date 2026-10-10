@@ -1,11 +1,19 @@
-import { type CloudFrontClient, CreateInvalidationCommand } from "@aws-sdk/client-cloudfront";
+import {
+  type CloudFrontClient,
+  CreateInvalidationCommand,
+  waitUntilInvalidationCompleted,
+} from "@aws-sdk/client-cloudfront";
 
+/** Seconds to wait for the invalidation; old hashed assets are kept if it takes longer. */
+const MAX_WAIT_SECONDS = 120;
+
+/** Invalidates `/*` and waits for completion. Returns false when it is still in progress. */
 export async function invalidateAll(
   cf: CloudFrontClient,
   distributionId: string,
   callerReference: string,
-): Promise<void> {
-  await cf.send(
+): Promise<boolean> {
+  const res = await cf.send(
     new CreateInvalidationCommand({
       DistributionId: distributionId,
       InvalidationBatch: {
@@ -14,4 +22,15 @@ export async function invalidateAll(
       },
     }),
   );
+  const id = res.Invalidation?.Id;
+  if (!id) return false;
+  try {
+    await waitUntilInvalidationCompleted(
+      { client: cf, maxWaitTime: MAX_WAIT_SECONDS },
+      { DistributionId: distributionId, Id: id },
+    );
+    return true;
+  } catch {
+    return false;
+  }
 }

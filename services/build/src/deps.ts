@@ -9,7 +9,7 @@ import { invalidateAll } from "./invalidate";
 import type { BuildDeps } from "./runBuild";
 import { prepareDotAstro, runSiteBuild } from "./siteBuild";
 import { DynamoBuildStatus } from "./status";
-import { syncToS3 } from "./syncSite";
+import { deleteKeys, syncToS3 } from "./syncSite";
 
 export function createDeps(config: Config, log: BuildDeps["log"]): BuildDeps {
   const db = DynamoDBDocumentClient.from(new DynamoDBClient({}));
@@ -23,15 +23,17 @@ export function createDeps(config: Config, log: BuildDeps["log"]): BuildDeps {
       mkdirSync(config.CACHE_DIR, { recursive: true });
     },
     exportData: (dir) => exportSiteData(db, config.TABLE_NAME, dir),
-    buildSite: (dataDir) =>
+    buildSite: (dataDir, deadline) =>
       runSiteBuild({
         siteDir: config.SITE_DIR,
         dataDir,
         outDir: config.OUT_DIR,
         cacheDir: config.CACHE_DIR,
+        deadline,
       }),
     sync: (distDir) => syncToS3(s3, config.SITE_BUCKET, distDir),
     invalidate: (reference) => invalidateAll(cf, config.DISTRIBUTION_ID, reference),
+    removeStaleAssets: (keys) => deleteKeys(s3, config.SITE_BUCKET, keys),
     log,
     dataDir: config.DATA_DIR,
   };

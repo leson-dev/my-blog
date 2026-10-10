@@ -265,8 +265,8 @@ Mọi route yêu cầu JWT của Cognito (JWT authorizer của API Gateway HTTP 
 | 1. Ghi trạng thái | `BUILD/LATEST = running` |
 | 2. Đọc dữ liệu | Query GSI `byUpdated`, lọc bài `published`, qua content loader tự viết của Astro |
 | 3. `astro build` | Sinh HTML (trang chủ, từng bài, từng tag) + chạy Pagefind tạo chỉ mục tìm kiếm. Output vào `/tmp/dist` |
-| 4. Đồng bộ S3 | Upload asset có hash (`/_astro/*`) trước → upload HTML → **xoá file thừa** (ví dụ bài vừa gỡ). Thứ tự này đảm bảo HTML không bao giờ trỏ tới asset chưa tồn tại |
-| 5. Invalidate | CloudFront invalidation `/*` (1.000 path/tháng miễn phí) |
+| 4. Đồng bộ S3 | Upload mọi file không phải HTML trước → upload HTML → **xoá trang thừa** (ví dụ bài vừa gỡ). Thứ tự này đảm bảo HTML không bao giờ trỏ tới asset chưa tồn tại |
+| 5. Invalidate | CloudFront invalidation `/*` (1.000 path/tháng miễn phí), **chờ hoàn tất** (tối đa 2 phút) rồi mới xoá asset có hash cũ (`/_astro/*`) — HTML cũ còn trong cache CloudFront vẫn tải được CSS/JS. Chưa xong trong 2 phút → giữ asset cũ, lượt build sau dọn |
 | 6. Ghi trạng thái | `success`, hoặc `failed` kèm thông báo lỗi |
 
 Cấu hình: container image, 2048 MB RAM, timeout 5 phút, ephemeral storage `/tmp` 2 GB.

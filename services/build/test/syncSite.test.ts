@@ -63,7 +63,8 @@ describe("planSync", () => {
     expect(plan).toEqual({
       assets: ["_astro/b.css", "pagefind/x.js"],
       pages: ["index.html", "vi/index.html"],
-      deletes: ["_astro/old.css", "vi/posts/old/index.html"],
+      deletes: ["vi/posts/old/index.html"],
+      staleAssets: ["_astro/old.css"],
     });
   });
 
@@ -86,6 +87,29 @@ describe("listLocalFiles", () => {
       "pagefind/pagefind.js",
       "vi/index.html",
     ]);
+  });
+});
+
+describe("syncToS3 errors", () => {
+  it("fails when S3 reports keys it could not delete", async () => {
+    s3mock
+      .on(ListObjectsV2Command)
+      .resolves({ Contents: [{ Key: "vi/posts/unpublished/index.html" }] });
+    s3mock.on(PutObjectCommand).resolves({});
+    s3mock.on(DeleteObjectsCommand).resolves({
+      Errors: [{ Key: "vi/posts/unpublished/index.html", Code: "AccessDenied" }],
+    });
+    await expect(syncToS3(s3, "site-bucket", makeDist())).rejects.toThrow(
+      /could not delete.*vi\/posts\/unpublished\/index\.html/,
+    );
+  });
+
+  it("does not delete stale hashed assets during the sync", async () => {
+    s3mock.on(ListObjectsV2Command).resolves({ Contents: [{ Key: "_astro/old.css" }] });
+    s3mock.on(PutObjectCommand).resolves({});
+    const plan = await syncToS3(s3, "site-bucket", makeDist());
+    expect(plan.staleAssets).toEqual(["_astro/old.css"]);
+    expect(s3mock.commandCalls(DeleteObjectsCommand)).toHaveLength(0);
   });
 });
 

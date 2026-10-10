@@ -1,10 +1,15 @@
 import { Logger } from "@aws-lambda-powertools/logger";
-import type { SQSEvent } from "aws-lambda";
+import type { Context, SQSEvent } from "aws-lambda";
 import { loadConfig } from "./config";
 import { createDeps } from "./deps";
 import { type BuildDeps, runBuild } from "./runBuild";
 
 const logger = new Logger({ serviceName: "blog-build" });
+/**
+ * Time kept after the site build for sync, invalidation (up to 2 minutes of waiting) and the
+ * status write, so a hung build is recorded as failed before Lambda kills the invocation.
+ */
+const RESERVED_MS = 150_000;
 let deps: BuildDeps | undefined;
 
 const reasonOf = (body: string): string => {
@@ -20,9 +25,10 @@ const reasonOf = (body: string): string => {
  * satisfied by one build, because the build reads the latest data when it starts.
  * Throwing fails the whole batch so SQS retries it (then the DLQ).
  */
-export async function handler(event: SQSEvent): Promise<void> {
+export async function handler(event: SQSEvent, context: Context): Promise<void> {
   deps ??= createDeps(loadConfig(process.env), logger);
   logger.info("build requested", { reasons: event.Records.map((r) => reasonOf(r.body)) });
   const reference = event.Records.at(-1)?.messageId ?? deps.now();
-  await runBuild(deps, reference);
+  const deadline = Date.now() + context.getRemainingTimeInMillis() - RESERVED_MS;
+  await runBuild(deps, reference, deadline);
 }
