@@ -24,3 +24,6 @@ npm-debug.log*
 .vscode/*
 !.vscode/extensions.json
 .idea/
+
+# Superpowers scratch (brainstorm mockups, plan ledgers)
+.superpowers/

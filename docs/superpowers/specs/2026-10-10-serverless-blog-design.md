@@ -3,6 +3,7 @@
 - **Ngày:** 2026-10-10
 - **Trạng thái:** Thiết kế hoàn tất — chờ tác giả review spec
 - **Tác giả:** Son Nguyen
+- **Sửa đổi:** mục 2, 3.2, 4.1, 4.2, 4.3 và 5.4 được bổ sung/thay thế bởi [`2026-10-10-ui-i18n-design.md`](2026-10-10-ui-i18n-design.md) (giao diện C1, song ngữ vi/ja). Khi mâu thuẫn, tài liệu đó được ưu tiên.
 
 ---
 
