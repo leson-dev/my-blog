@@ -211,6 +211,19 @@ time {
   }
 }
 
+/* Visually hidden, still read by screen readers (e.g. the footnotes heading). */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
 .site-footer {
   margin: 48px 0 24px;
   font-family: var(--font-mono);

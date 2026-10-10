@@ -33,7 +33,7 @@ const { tags } = siteData();
   <article lang={lang} data-pagefind-body>
     {post.coverImage && <img class="post-cover" src={post.coverImage} alt="" />}
     <h1 class="post-title">{version.title}</h1>
-    <p class="meta">
+    <p class="meta" data-pagefind-ignore>
       <LocalDate iso={version.publishedAt ?? version.updatedAt} />
       {post.tags.map((key) => (
         <>
@@ -45,12 +45,12 @@ const { tags } = siteData();
       {dict["post.minutes"](minutes)}
     </p>
     {page.translationUrl && (
-      <nav class="version-switch" data-version-switch aria-label={dict["post.readIn"]}>
+      <nav class="version-switch" data-version-switch data-pagefind-ignore aria-label={dict["post.readIn"]}>
         {lang === "vi" ? <b>vi</b> : <a href={page.translationUrl} data-lang-switch="vi">vi</a>}
         {lang === "ja" ? <b>日本語</b> : <a href={page.translationUrl} data-lang-switch="ja">日本語</a>}
       </nav>
     )}
-    {lang !== ui && <p class="notice">{dict["post.onlyIn"](lang)}</p>}
+    {lang !== ui && <p class="notice" data-pagefind-ignore>{dict["post.onlyIn"](lang)}</p>}
     <div class="prose" set:html={html} />
   </article>
 </Base>

@@ -115,6 +115,21 @@ describe("tag pages and 404", () => {
 });
 
 describe("search", () => {
+  it("loads search pages without the client router so Pagefind always initialises", () => {
+    expect(read("vi/index.html")).toContain("astro-view-transitions-enabled");
+    expect(read("ja/search/index.html")).not.toContain("astro-view-transitions-enabled");
+  });
+
+  it("keeps post meta, the version switch and the notice out of the search index", () => {
+    const html = read("ja/posts/hoc-aws-lambda-tu-con-so-0/index.html");
+    expect(html).toMatch(/class="meta"[^>]*data-pagefind-ignore/);
+    expect(html).toMatch(/class="notice"[^>]*data-pagefind-ignore/);
+    const both = read("vi/posts/mua-thu-dau-tien-o-tokyo/index.html");
+    expect(both).toMatch(
+      /data-version-switch[^>]*data-pagefind-ignore|data-pagefind-ignore[^>]*data-version-switch/,
+    );
+  });
+
   it("builds one Pagefind index per UI language", () => {
     expect(exists("pagefind/pagefind.js")).toBe(true);
     const entry = JSON.parse(read("pagefind/pagefind-entry.json"));

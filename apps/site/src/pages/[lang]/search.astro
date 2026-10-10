@@ -13,7 +13,7 @@ const dict = t(ui);
 const other: Lang = ui === "vi" ? "ja" : "vi";
 ---
 
-<Base ui={ui} title={`${dict["search.title"]} · ${dict.siteName}`} altUrl={urls.search(other)}>
+<Base ui={ui} title={`${dict["search.title"]} · ${dict.siteName}`} altUrl={urls.search(other)} noRouter>
   <link rel="stylesheet" href="/pagefind/pagefind-ui.css" />
   <h1 class="year">{dict["search.title"]}</h1>
   <div id="search"></div>

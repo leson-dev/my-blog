@@ -1,5 +1,5 @@
 import rehypeShiki from "@shikijs/rehype";
-import rehypeSanitize from "rehype-sanitize";
+import rehypeSanitize, { defaultSchema } from "rehype-sanitize";
 import rehypeSlug from "rehype-slug";
 import rehypeStringify from "rehype-stringify";
 import remarkGfm from "remark-gfm";
@@ -16,9 +16,11 @@ function createProcessor() {
       .use(remarkParse)
       .use(remarkGfm)
       // allowDangerousHtml stays off: raw HTML in Markdown is dropped here.
+      // remark-rehype prefixes footnote ids *and* hrefs with "user-content-"; raw HTML is gone,
+      // so sanitize must not add the prefix a second time (it only rewrites ids, not hrefs).
       .use(remarkRehype)
       // Sanitize before highlighting so Shiki's inline styles are not stripped.
-      .use(rehypeSanitize)
+      .use(rehypeSanitize, { ...defaultSchema, clobberPrefix: "" })
       .use(rehypeSlug)
       .use(lazyImages)
       .use(rehypeShiki, {

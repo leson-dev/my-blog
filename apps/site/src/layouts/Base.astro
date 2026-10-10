@@ -14,9 +14,14 @@ interface Props {
   altUrl: string;
   /** Only the root "/" page remembers and applies the saved language. */
   isRoot?: boolean;
+  /**
+   * Render without the client router: every navigation from and back to this page is a full
+   * load. Used by the search page, whose Pagefind UI only initialises on a full load.
+   */
+  noRouter?: boolean;
 }
 
-const { ui, title, altUrl, isRoot = false } = Astro.props;
+const { ui, title, altUrl, isRoot = false, noRouter = false } = Astro.props;
 const dict = t(ui);
 const other: Lang = ui === "vi" ? "ja" : "vi";
 ---
@@ -51,7 +56,7 @@ const other: Lang = ui === "vi" ? "ja" : "vi";
         }
       });
     </script>
-    <ClientRouter />
+    {!noRouter && <ClientRouter />}
   </head>
   <body>
     <div class="wrap">

@@ -38,6 +38,13 @@ describe("renderMarkdown", () => {
     expect(html).toContain("plain text");
   });
 
+  it("links footnote references to their notes", async () => {
+    const html = await renderMarkdown("Text[^1]\n\n[^1]: note");
+    const href = html.match(/href="#([^"]+)"/)?.[1];
+    expect(href).toBeDefined();
+    expect(html).toContain(`id="${href}"`);
+  });
+
   it("lazy-loads images", async () => {
     const html = await renderMarkdown("![alt](/media/2026/a.webp)");
     expect(html).toContain('loading="lazy"');
