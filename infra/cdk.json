@@ -6,6 +6,7 @@
     "domainName": "oki-dev.xyz",
     "hostedZoneId": "Z05049371XH13FJE6L09",
     "alertEmail": "nguyenleson0002@gmail.com",
-    "adminDevOrigin": "http://localhost:5173"
+    "adminDevOrigin": "http://localhost:5173",
+    "@aws-cdk/core:defaultCrossStackReferences": "strong"
   }
 }
