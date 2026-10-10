@@ -1,7 +1,7 @@
 # Thiết kế: Blog cá nhân serverless — oki-dev.xyz
 
 - **Ngày:** 2026-10-10
-- **Trạng thái:** Đang thiết kế — Phần 1–2/5 đã duyệt
+- **Trạng thái:** Đang thiết kế — Phần 1–3/5 đã duyệt
 - **Tác giả:** Son Nguyen
 
 ---
@@ -15,7 +15,7 @@ Blog cá nhân, một tác giả duy nhất, viết bài qua trang quản trị 
 ### Tiêu chí thành công
 
 - Người đọc mở bài thấy nội dung **ngay lập tức**, chuyển giữa các bài **mượt** (không trắng trang).
-- Tác giả viết xong, bấm Publish → bài lên site trong **khoảng 1 phút** (mục tiêu 15–30 giây).
+- Tác giả viết xong, bấm Publish → bài lên site trong **khoảng 30–60 giây**.
 - Chi phí vận hành hàng tháng **gần như 0** ở quy mô blog cá nhân.
 - Toàn bộ hạ tầng là code, deploy tự động khi push lên `main`.
 
@@ -235,9 +235,52 @@ Mọi route yêu cầu JWT của Cognito (JWT authorizer của API Gateway HTTP 
 - Presigned **POST** (không phải PUT) để S3 tự áp giới hạn dung lượng (`content-length-range`) và `Content-Type`.
 - Phiên bản đầu **không** theo dõi ảnh trong database (YAGNI) — ảnh không còn được dùng vẫn nằm lại trong S3.
 
-## 3. Luồng publish & build
+## 3. Luồng publish & build ✅
 
-_Chưa thiết kế._
+### 3.1 Publish ngay
+
+1. Tác giả bấm Publish → Lambda API đặt `status = published`, ghi `publishedAt`.
+2. Lambda API gửi message vào SQS FIFO, ghi `BUILD/LATEST = queued`, trả về ngay (< 1 s).
+3. Lambda Build nhận message → build (mục 3.3).
+4. Trang quản trị gọi `GET /builds/latest` mỗi vài giây cho tới khi `success`/`failed`.
+
+### 3.2 Hẹn giờ
+
+- Publish với `publishAt` ở tương lai → `status = scheduled` + tạo **one-time schedule** trên EventBridge Scheduler: tên `post-<id>`, biểu thức `at(<publishAt UTC>)`, `ActionAfterCompletion: DELETE` (tự xoá sau khi chạy).
+- Đến giờ, Scheduler gọi Lambda API (handler riêng, cùng code). Handler chỉ chuyển sang `published` **khi bài vẫn `scheduled` và `publishAt` khớp** — tránh lịch cũ chạy sau khi tác giả đã đổi giờ/huỷ. Sau đó gửi message build như 3.1.
+- Đổi giờ / huỷ hẹn / xoá bài → xoá schedule cũ (không tồn tại thì bỏ qua).
+- **Múi giờ:** trang quản trị cho chọn giờ hẹn theo **giờ Việt Nam (`Asia/Ho_Chi_Minh`, UTC+7)** hoặc **giờ Nhật (`Asia/Tokyo`, UTC+9)** qua một ô chọn múi giờ cạnh ô chọn ngày giờ; lựa chọn được nhớ trên trình duyệt. Thời điểm hẹn hiển thị kèm giờ ở múi còn lại để đối chiếu (ví dụ "08:00 JST · 06:00 giờ VN"). Server luôn nhận và lưu **UTC**.
+
+### 3.3 Lambda Build
+
+| Bước | Chi tiết |
+|---|---|
+| 1. Ghi trạng thái | `BUILD/LATEST = running` |
+| 2. Đọc dữ liệu | Query GSI `byUpdated`, lọc bài `published`, qua content loader tự viết của Astro |
+| 3. `astro build` | Sinh HTML (trang chủ, từng bài, từng tag) + chạy Pagefind tạo chỉ mục tìm kiếm. Output vào `/tmp/dist` |
+| 4. Đồng bộ S3 | Upload asset có hash (`/_astro/*`) trước → upload HTML → **xoá file thừa** (ví dụ bài vừa gỡ). Thứ tự này đảm bảo HTML không bao giờ trỏ tới asset chưa tồn tại |
+| 5. Invalidate | CloudFront invalidation `/*` (1.000 path/tháng miễn phí) |
+| 6. Ghi trạng thái | `success`, hoặc `failed` kèm thông báo lỗi |
+
+Cấu hình: container image, 2048 MB RAM, timeout 5 phút, ephemeral storage `/tmp` 2 GB.
+
+### 3.4 Một build tại một thời điểm & gộp build
+
+- Mọi message dùng chung `MessageGroupId = "site"` → Lambda xử lý **tuần tự**, không bao giờ có hai build cùng ghi S3.
+- Batch size 10: một lần gọi nhận tối đa 10 message nhưng **chỉ build một lần**. Nhiều thay đổi dồn lại trong lúc đang build → gộp thành một build kế tiếp.
+- Build đọc dữ liệu **mới nhất tại thời điểm bắt đầu**; thay đổi xảy ra sau đó có message riêng → được build ở lượt sau, không bị sót.
+- `MessageDeduplicationId` là ID ngẫu nhiên cho mỗi yêu cầu (không dùng content-based dedup, để hai yêu cầu giống nhau trong 5 phút không bị nuốt mất).
+
+### 3.5 Build lỗi
+
+- **Site cũ giữ nguyên** — chỉ đồng bộ S3 khi `astro build` thành công.
+- SQS thử lại 1 lần (`maxReceiveCount = 2`); vẫn lỗi → message vào **DLQ**, `BUILD/LATEST = failed` kèm lỗi.
+- Trang quản trị hiển thị lỗi + nút **"Build lại"** (`POST /builds`).
+- **Cảnh báo:** message rơi vào DLQ → CloudWatch Alarm → SNS → **email** và **Discord**. Chi tiết ở Phần 5.
+
+### 3.6 Thời gian thực tế
+
+`astro build` ~10–20 s; tính cả cold start container, đồng bộ S3 và CloudFront invalidation → **bấm Publish đến khi bài hiện trên site: khoảng 30–60 giây**.
 
 ## 4. Trang quản trị & site đọc
 
