@@ -33,7 +33,16 @@ describe("exportSiteData", () => {
       .resolvesOnce({ Items: [postItem("A")], LastEvaluatedKey: { PK: "POST#A" } })
       .resolvesOnce({ Items: [postItem("B")] });
     ddb.on(QueryCommand, { ExpressionAttributeValues: { ":pk": "TAG" } }).resolves({
-      Items: [{ PK: "TAG#life", SK: "TAG", GSI1PK: "TAG", GSI1SK: "life", key: "life", names: { ja: "暮らし" } }],
+      Items: [
+        {
+          PK: "TAG#life",
+          SK: "TAG",
+          GSI1PK: "TAG",
+          GSI1SK: "life",
+          key: "life",
+          names: { ja: "暮らし" },
+        },
+      ],
     });
 
     const dir = join(mkdtempSync(join(tmpdir(), "export-")), "data");
