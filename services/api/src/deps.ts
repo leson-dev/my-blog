@@ -6,6 +6,7 @@ import { DynamoDBDocumentClient } from "@aws-sdk/lib-dynamodb";
 import { ulid } from "ulid";
 import { DynamoBuildStatusRepository } from "./adapters/dynamo/buildStatusRepo";
 import { DynamoPostRepository } from "./adapters/dynamo/postRepo";
+import { DynamoTagRepository } from "./adapters/dynamo/tagRepo";
 import { S3UploadSigner } from "./adapters/s3/uploadSigner";
 import { EventBridgePublishScheduler } from "./adapters/scheduler/publishScheduler";
 import { SqsBuildQueue } from "./adapters/sqs/buildQueue";
@@ -13,9 +14,12 @@ import type { Config } from "./config";
 import type { Deps, Log } from "./usecases/ports";
 
 export function createDeps(config: Config, log: Log): Deps {
-  const db = DynamoDBDocumentClient.from(new DynamoDBClient({}));
+  const db = DynamoDBDocumentClient.from(new DynamoDBClient({}), {
+    marshallOptions: { removeUndefinedValues: true },
+  });
   return {
     posts: new DynamoPostRepository(db, config.TABLE_NAME),
+    tags: new DynamoTagRepository(db, config.TABLE_NAME),
     builds: new DynamoBuildStatusRepository(db, config.TABLE_NAME),
     buildQueue: new SqsBuildQueue(new SQSClient({}), config.BUILD_QUEUE_URL),
     scheduler: new EventBridgePublishScheduler(new SchedulerClient({}), {

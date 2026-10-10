@@ -1,8 +1,12 @@
 import {
   createPostInputSchema,
   createUploadInputSchema,
+  type Lang,
+  langSchema,
   publishInputSchema,
+  putTagInputSchema,
   updatePostInputSchema,
+  upsertVersionInputSchema,
 } from "@blog/shared";
 import type { APIGatewayProxyEventV2WithJWTAuthorizer } from "aws-lambda";
 import { ZodError } from "zod";
@@ -10,16 +14,21 @@ import { DomainError } from "../../domain/errors";
 import { getLatestBuild, triggerBuild } from "../../usecases/builds";
 import type { Deps, Log } from "../../usecases/ports";
 import { createPost, deletePost, getPost, listPosts, updatePost } from "../../usecases/posts";
-import { publishPost, unpublishPost } from "../../usecases/publishing";
+import { publishVersion, unpublishVersion } from "../../usecases/publishing";
+import { listTags, putTag } from "../../usecases/tags";
 import { createUpload } from "../../usecases/uploads";
+import { deleteVersion, upsertVersion } from "../../usecases/versions";
 import { isE2EUser } from "./auth";
 import { errorResponse, type HttpResult, json, noContent } from "./response";
 
 interface RouteContext {
   deps: Deps;
-  id: () => string;
+  /** Required path parameter. */
+  param: (name: string) => string;
+  /** The `{lang}` path parameter, validated. */
+  lang: () => Lang;
   body: unknown;
-  e2e: boolean;
+  caller: { e2e: boolean };
 }
 
 interface Route {
@@ -34,29 +43,59 @@ const routes: Record<string, Route> = {
     run: async ({ deps, body }) =>
       json(201, await createPost(deps, createPostInputSchema.parse(body))),
   },
-  "GET /posts/{id}": { run: async ({ deps, id }) => json(200, await getPost(deps, id())) },
+  "GET /posts/{id}": {
+    run: async ({ deps, param }) => json(200, await getPost(deps, param("id"))),
+  },
   "PUT /posts/{id}": {
-    run: async ({ deps, id, body, e2e }) =>
-      json(200, await updatePost(deps, id(), updatePostInputSchema.parse(body), { e2e })),
+    run: async ({ deps, param, body, caller }) =>
+      json(200, await updatePost(deps, param("id"), updatePostInputSchema.parse(body), caller)),
   },
   "DELETE /posts/{id}": {
-    run: async ({ deps, id, e2e }) => {
-      await deletePost(deps, id(), { e2e });
+    run: async ({ deps, param, caller }) => {
+      await deletePost(deps, param("id"), caller);
       return noContent();
     },
   },
-  "POST /posts/{id}/publish": {
-    forbiddenForE2E: true,
-    run: async ({ deps, id, body }) =>
-      json(200, await publishPost(deps, id(), publishInputSchema.parse(body ?? {}))),
+  "PUT /posts/{id}/versions/{lang}": {
+    run: async ({ deps, param, lang, body, caller }) =>
+      json(
+        200,
+        await upsertVersion(
+          deps,
+          param("id"),
+          lang(),
+          upsertVersionInputSchema.parse(body),
+          caller,
+        ),
+      ),
   },
-  "POST /posts/{id}/unpublish": {
+  "DELETE /posts/{id}/versions/{lang}": {
+    run: async ({ deps, param, lang, caller }) => {
+      await deleteVersion(deps, param("id"), lang(), caller);
+      return noContent();
+    },
+  },
+  "POST /posts/{id}/versions/{lang}/publish": {
     forbiddenForE2E: true,
-    run: async ({ deps, id }) => json(200, await unpublishPost(deps, id())),
+    run: async ({ deps, param, lang, body }) =>
+      json(
+        200,
+        await publishVersion(deps, param("id"), lang(), publishInputSchema.parse(body ?? {})),
+      ),
+  },
+  "POST /posts/{id}/versions/{lang}/unpublish": {
+    forbiddenForE2E: true,
+    run: async ({ deps, param, lang }) =>
+      json(200, await unpublishVersion(deps, param("id"), lang())),
+  },
+  "GET /tags": { run: async ({ deps }) => json(200, await listTags(deps)) },
+  "PUT /tags/{key}": {
+    run: async ({ deps, param, body, caller }) =>
+      json(200, await putTag(deps, param("key"), putTagInputSchema.parse(body), caller)),
   },
   "POST /uploads": {
-    run: async ({ deps, body, e2e }) =>
-      json(200, await createUpload(deps, createUploadInputSchema.parse(body), { e2e })),
+    run: async ({ deps, body, caller }) =>
+      json(200, await createUpload(deps, createUploadInputSchema.parse(body), caller)),
   },
   "GET /builds/latest": { run: async ({ deps }) => json(200, await getLatestBuild(deps)) },
   "POST /builds": {
@@ -100,18 +139,19 @@ export async function handleHttp(
   const route = routes[event.routeKey];
   if (!route) return errorResponse("NOT_FOUND", `no route for ${event.routeKey}`);
 
-  const e2e = isE2EUser(event);
-  if (route.forbiddenForE2E && e2e) {
+  const caller = { e2e: isE2EUser(event) };
+  if (route.forbiddenForE2E && caller.e2e) {
     return errorResponse("FORBIDDEN", "the e2e account cannot change what is published");
   }
 
   try {
-    const id = () => {
-      const value = event.pathParameters?.id;
-      if (!value) throw new DomainError("VALIDATION_ERROR", "missing path parameter: id");
+    const param = (name: string) => {
+      const value = event.pathParameters?.[name];
+      if (!value) throw new DomainError("VALIDATION_ERROR", `missing path parameter: ${name}`);
       return value;
     };
-    return await route.run({ deps, id, body: parseBody(event), e2e });
+    const lang = () => langSchema.parse(param("lang"));
+    return await route.run({ deps, param, lang, body: parseBody(event), caller });
   } catch (err) {
     return toErrorResponse(err, log, event.requestContext.requestId);
   }

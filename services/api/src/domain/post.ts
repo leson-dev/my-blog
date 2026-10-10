@@ -175,7 +175,7 @@ export function publishScheduled(
   now: string,
 ): Post | null {
   const current = post.versions[lang];
-  if (!current || current.status !== "scheduled" || current.publishAt !== scheduledFor) return null;
+  if (current?.status !== "scheduled" || current.publishAt !== scheduledFor) return null;
   return withVersion(
     post,
     lang,
