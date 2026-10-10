@@ -38,3 +38,5 @@ catalog:
   "@fontsource/be-vietnam-pro": 5.3.0
   "@fontsource/noto-sans-jp": 5.3.0
   "@fontsource/jetbrains-mono": 5.3.0
+  "@aws-sdk/client-cloudfront": 3.1146.0
+  esbuild: 0.28.2
