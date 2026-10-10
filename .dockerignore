@@ -9,3 +9,5 @@ docs
 **/.env
 **/.env.*
 **/cdk.out
+infra
+e2e

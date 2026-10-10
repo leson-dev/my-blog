@@ -18,6 +18,14 @@ describe("DataStack", () => {
     expect(synth().stack.terminationProtection).toBe(true);
   });
 
+  it("turns on deletion protection for the table and the user pool", () => {
+    const { template } = synth();
+    template.hasResourceProperties("AWS::DynamoDB::GlobalTable", {
+      Replicas: [Match.objectLike({ DeletionProtectionEnabled: true })],
+    });
+    template.hasResourceProperties("AWS::Cognito::UserPool", { DeletionProtection: "ACTIVE" });
+  });
+
   it("creates the single table with the byUpdated index, PITR and retention", () => {
     const { template } = synth();
     template.hasResource("AWS::DynamoDB::GlobalTable", {

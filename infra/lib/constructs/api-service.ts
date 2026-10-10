@@ -95,6 +95,7 @@ export class ApiService extends Construct {
       memorySize: 512,
       timeout: Duration.seconds(10),
       logGroup: new logs.LogGroup(this, "ApiLogs", {
+        logGroupName: `/aws/lambda/${functionName}`,
         retention: logs.RetentionDays.ONE_MONTH,
         removalPolicy: RemovalPolicy.DESTROY,
       }),

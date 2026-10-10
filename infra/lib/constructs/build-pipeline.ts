@@ -52,6 +52,7 @@ export class BuildPipeline extends Construct {
       timeout,
       ephemeralStorageSize: Size.gibibytes(2),
       logGroup: new logs.LogGroup(this, "BuildLogs", {
+        logGroupName: "/aws/lambda/blog-build",
         retention: logs.RetentionDays.ONE_MONTH,
         removalPolicy: RemovalPolicy.DESTROY,
       }),

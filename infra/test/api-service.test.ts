@@ -54,6 +54,10 @@ describe("ApiService", () => {
     });
   });
 
+  it("logs to /aws/lambda/blog-api", () => {
+    synth().hasResourceProperties("AWS::Logs::LogGroup", { LogGroupName: "/aws/lambda/blog-api" });
+  });
+
   it("protects every planned route with the Cognito JWT authorizer", () => {
     const template = synth();
     expect(API_ROUTES).toHaveLength(14);

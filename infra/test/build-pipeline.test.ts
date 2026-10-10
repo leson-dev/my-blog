@@ -1,10 +1,12 @@
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { Stack } from "aws-cdk-lib";
 import { Match, Template } from "aws-cdk-lib/assertions";
 import * as cloudfront from "aws-cdk-lib/aws-cloudfront";
 import { S3BucketOrigin } from "aws-cdk-lib/aws-cloudfront-origins";
 import * as dynamodb from "aws-cdk-lib/aws-dynamodb";
 import * as s3 from "aws-cdk-lib/aws-s3";
-import { describe, it } from "vitest";
+import { describe, expect, it } from "vitest";
 import { BuildPipeline } from "../lib/constructs/build-pipeline";
 import { repoRoot, testApp } from "./helpers";
 
@@ -53,6 +55,17 @@ describe("BuildPipeline", () => {
         }),
       },
     });
+  });
+
+  it("logs to /aws/lambda/blog-build so the runbook can tail it", () => {
+    synth().hasResourceProperties("AWS::Logs::LogGroup", {
+      LogGroupName: "/aws/lambda/blog-build",
+    });
+  });
+
+  it("keeps infra and e2e out of the image build context (no rebuild on infra edits)", () => {
+    const ignored = readFileSync(join(repoRoot, ".dockerignore"), "utf8").split("\n");
+    expect(ignored).toEqual(expect.arrayContaining(["infra", "e2e"]));
   });
 
   it("may invalidate and poll invalidations of the blog distribution", () => {

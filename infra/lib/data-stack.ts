@@ -20,6 +20,7 @@ export class DataStack extends Stack {
       sortKey: { name: "SK", type: dynamodb.AttributeType.STRING },
       billing: dynamodb.Billing.onDemand(),
       pointInTimeRecoverySpecification: { pointInTimeRecoveryEnabled: true },
+      deletionProtection: true,
       removalPolicy: RemovalPolicy.RETAIN,
       globalSecondaryIndexes: [
         {
@@ -44,6 +45,7 @@ export class DataStack extends Stack {
       },
       accountRecovery: cognito.AccountRecovery.EMAIL_ONLY,
       featurePlan: cognito.FeaturePlan.ESSENTIALS,
+      deletionProtection: true,
       removalPolicy: RemovalPolicy.RETAIN,
     });
 
