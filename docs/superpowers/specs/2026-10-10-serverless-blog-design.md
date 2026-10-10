@@ -461,12 +461,31 @@ Alarm gửi cả khi trở lại `OK` để biết sự cố đã hết. Email n
 
 ### 5.5 CI/CD — GitHub Actions
 
+#### Quy tắc nhánh: mọi thay đổi vào `main` phải qua Pull Request
+
+Cấu hình bằng **GitHub ruleset** cho nhánh `main`:
+
+| Quy tắc | Giá trị |
+|---|---|
+| Bắt buộc Pull Request | Có — **cấm push trực tiếp** lên `main` |
+| Số người duyệt bắt buộc | 0 (một tác giả, GitHub không cho tự duyệt PR của mình) |
+| Status check bắt buộc | Job CI của workflow PR phải xanh |
+| Nhánh phải cập nhật với `main` trước khi merge | Có |
+| Cấm force push / xoá nhánh `main` | Có |
+| Cho phép bỏ qua (bypass) | **Không** — kể cả admin |
+| Kiểu merge | **Squash merge** — mỗi PR thành một commit trên `main` |
+
+Quy trình làm việc: tạo nhánh (`feat/...`, `fix/...`) → push → mở PR → CI xanh → merge → workflow deploy tự chạy.
+
+> Ruleset cho repo **private** cần gói GitHub Pro/Team; repo **public** dùng miễn phí.
+
 | Sự kiện | Bước |
 |---|---|
 | Pull request | `pnpm install` → lint → typecheck → unit/integration test → `cdk synth` |
-| Push `main` | Như trên → build admin → `cdk deploy --all` → gửi message build vào SQS (build lại site bằng image mới) → **chờ build `success`** (đọc item `BUILD/LATEST`, timeout 5 phút) → **chạy E2E** |
+| Push `main` (chỉ xảy ra khi merge PR) | Như trên → build admin → `cdk deploy --all` → gửi message build vào SQS (build lại site bằng image mới) → **chờ build `success`** (đọc item `BUILD/LATEST`, timeout 5 phút) → **chạy E2E** |
 
 - `concurrency` group: không bao giờ hai lượt deploy chồng nhau.
+- **CI của PR không cần quyền AWS:** CDK không dùng `fromLookup`; hosted zone ID, tên miền, email cảnh báo, owner/repo GitHub truyền qua `cdk.json` context → `cdk synth` chạy được mà không cần đăng nhập AWS.
 - E2E thất bại → workflow đỏ → GitHub gửi email. Không tự rollback (bản đầu).
 - **Cấu hình admin** (URL API, Cognito ID) do CDK sinh thành `/config.json` khi deploy → admin build một lần, không phụ thuộc output deploy.
 - **Kiến trúc CPU:** Lambda zip (API) chạy **arm64**; Lambda Build (container) chạy **x86_64** để build image trên runner GitHub không cần giả lập ARM.
@@ -474,7 +493,7 @@ Alarm gửi cả khi trở lại `OK` để biết sự cố đã hết. Email n
   - `CertStack` (`us-east-1`) — chứng chỉ CloudFront.
   - `BlogStack` (`ap-northeast-1`) — mọi thứ còn lại, dùng `crossRegionReferences`.
   - `CiStack` — OIDC provider + role deploy cho GitHub, deploy tay một lần.
-- **Việc làm tay một lần:** `cdk bootstrap` hai region; deploy `CiStack`; tạo tài khoản quản trị + tài khoản E2E (nhóm `e2e`) trên Cognito và thiết lập MFA; lưu bí mật E2E vào GitHub Secrets.
+- **Việc làm tay một lần:** tạo repo GitHub + ruleset cho `main`; `cdk bootstrap` hai region; deploy `CiStack`; tạo tài khoản quản trị + tài khoản E2E (nhóm `e2e`) trên Cognito và thiết lập MFA; lưu bí mật E2E vào GitHub Secrets.
 - **Dọn image ECR:** chạy `cdk gc` định kỳ để xoá image không còn dùng.
 
 ### 5.6 Chi phí ước tính / tháng
