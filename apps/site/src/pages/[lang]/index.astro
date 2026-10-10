@@ -1,0 +1,21 @@
+---
+import { LANGS, type Lang } from "@blog/shared";
+import Archive from "../../components/Archive.astro";
+import { t } from "../../i18n";
+import Base from "../../layouts/Base.astro";
+import { siteData } from "../../lib/data";
+import { urls } from "../../lib/urls";
+import { byYear, postPages } from "../../lib/view";
+
+export function getStaticPaths() {
+  return LANGS.map((lang) => ({ params: { lang } }));
+}
+
+const ui = Astro.params.lang as Lang;
+const groups = byYear(postPages(siteData().posts, ui));
+const other: Lang = ui === "vi" ? "ja" : "vi";
+---
+
+<Base ui={ui} title={t(ui).siteName} altUrl={urls.home(other)}>
+  <Archive ui={ui} groups={groups} />
+</Base>

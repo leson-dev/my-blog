@@ -1,0 +1,75 @@
+---
+import type { Lang } from "@blog/shared";
+import "@blog/ui-tokens/tokens.css";
+import "@blog/ui-tokens/fonts.css";
+import "../styles/site.css";
+import { ClientRouter } from "astro:transitions";
+import { t } from "../i18n";
+import { urls } from "../lib/urls";
+
+interface Props {
+  ui: Lang;
+  title: string;
+  /** URL of the equivalent page in the other UI language. */
+  altUrl: string;
+  /** Only the root "/" page remembers and applies the saved language. */
+  isRoot?: boolean;
+}
+
+const { ui, title, altUrl, isRoot = false } = Astro.props;
+const dict = t(ui);
+const other: Lang = ui === "vi" ? "ja" : "vi";
+---
+
+<!doctype html>
+<html lang={ui}>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="light dark" />
+    <title>{title}</title>
+    {isRoot && (
+      <script is:inline>
+        try {
+          if (localStorage.getItem("lang") === "ja") location.replace("/ja/");
+        } catch {}
+      </script>
+    )}
+    <script is:inline>
+      document.addEventListener("click", (event) => {
+        const link = event.target instanceof Element ? event.target.closest("[data-lang-switch]") : null;
+        if (!link) return;
+        try {
+          localStorage.setItem("lang", link.getAttribute("data-lang-switch"));
+        } catch {}
+      });
+      const formatter = new Intl.DateTimeFormat("sv-SE", { year: "numeric", month: "2-digit", day: "2-digit" });
+      document.addEventListener("astro:page-load", () => {
+        for (const el of document.querySelectorAll("time[data-local-date]")) {
+          const date = new Date(el.getAttribute("datetime"));
+          if (!Number.isNaN(date.getTime())) el.textContent = formatter.format(date);
+        }
+      });
+    </script>
+    <ClientRouter />
+  </head>
+  <body>
+    <div class="wrap">
+      <header class="site-header">
+        <a class="logo" href={urls.home(ui)}>~/{dict.siteName}<span>$</span></a>
+        <nav class="site-nav">
+          <a href={urls.home(ui)}>{dict["nav.posts"]}</a>
+          <a href={urls.tags(ui)}>{dict["nav.tags"]}</a>
+          <a href={urls.search(ui)} data-astro-reload>{dict["nav.search"]}</a>
+          <span class="lang-switch">
+            [{ui === "vi" ? <b>vi</b> : <a href={altUrl} data-lang-switch="vi">vi</a>}|{ui === "ja" ? <b>ja</b> : <a href={altUrl} data-lang-switch="ja">ja</a>}]
+          </span>
+        </nav>
+      </header>
+      <main>
+        <slot />
+      </main>
+      <footer class="site-footer">© oki-dev · {t(other).langName}: <a href={altUrl} data-lang-switch={other}>{other}</a></footer>
+    </div>
+  </body>
+</html>

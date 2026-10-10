@@ -1,0 +1,14 @@
+---
+import Archive from "../components/Archive.astro";
+import { t } from "../i18n";
+import Base from "../layouts/Base.astro";
+import { siteData } from "../lib/data";
+import { urls } from "../lib/urls";
+import { byYear, postPages } from "../lib/view";
+
+const groups = byYear(postPages(siteData().posts, "vi"));
+---
+
+<Base ui="vi" title={t("vi").siteName} altUrl={urls.home("ja")} isRoot>
+  <Archive ui="vi" groups={groups} />
+</Base>

@@ -1,0 +1,9 @@
+---
+interface Props {
+  /** ISO 8601 UTC timestamp. */
+  iso: string;
+}
+const { iso } = Astro.props;
+---
+
+<time datetime={iso} data-local-date>{iso.slice(0, 10)}</time>

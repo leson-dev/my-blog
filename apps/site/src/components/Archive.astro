@@ -1,0 +1,29 @@
+---
+import type { Lang } from "@blog/shared";
+import { t } from "../i18n";
+import type { YearGroup } from "../lib/view";
+import LocalDate from "./LocalDate.astro";
+
+interface Props {
+  ui: Lang;
+  groups: YearGroup[];
+}
+
+const { ui, groups } = Astro.props;
+---
+
+{groups.length === 0 && <p>{t(ui)["archive.empty"]}</p>}
+{groups.map((group) => (
+  <section>
+    <h2 class="year">{group.year}</h2>
+    {group.pages.map((page) => (
+      <div class="archive-row">
+        <LocalDate iso={page.version.publishedAt ?? page.version.updatedAt} />
+        <span>
+          <a href={page.url} lang={page.lang}>{page.version.title}</a>
+          {page.lang !== ui && <span class="lang-label" data-lang-label>{page.lang}</span>}
+        </span>
+      </div>
+    ))}
+  </section>
+))}
