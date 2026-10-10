@@ -1,7 +1,7 @@
 # Thiết kế: Blog cá nhân serverless — oki-dev.xyz
 
 - **Ngày:** 2026-10-10
-- **Trạng thái:** Đang thiết kế — Phần 1–4/5 đã duyệt
+- **Trạng thái:** Thiết kế hoàn tất — chờ tác giả review spec
 - **Tác giả:** Son Nguyen
 
 ---
@@ -22,9 +22,11 @@ Blog cá nhân, một tác giả duy nhất, viết bài qua trang quản trị 
 ### Ngoài phạm vi (phiên bản đầu)
 
 - SEO (không phải ưu tiên).
-- Bình luận, đăng ký thành viên, nhiều tác giả, phân quyền.
+- Bình luận, đăng ký thành viên, nhiều tác giả, phân quyền theo vai trò (ngoài nhóm `e2e` giới hạn quyền cho test).
 - Thư viện quản lý ảnh trong database.
 - Môi trường dev/staging riêng.
+- Thông báo qua Discord (tạm bỏ; có thể thêm sau qua SNS → Lambda → webhook).
+- WAF.
 
 ### Quyết định đã chốt
 
@@ -42,6 +44,10 @@ Blog cá nhân, một tác giả duy nhất, viết bài qua trang quản trị 
 | Region chính | **`ap-northeast-1` (Tokyo)** | Chứng chỉ cho CloudFront đặt ở `us-east-1` (bắt buộc) |
 | Môi trường | Chỉ **prod** | Đủ cho blog cá nhân |
 | CI/CD | **GitHub Actions**, push `main` → deploy prod | Tự động hoá, xác thực AWS qua OIDC |
+| Monorepo | **pnpm workspaces** | Chặn phantom dependency (lỗi chỉ lộ khi đóng gói Lambda/image), `pnpm deploy` tiện cho Dockerfile |
+| Runtime Lambda | **Node.js** (runtime AWS quản lý) | Không phải tự bảo trì custom runtime như Deno/Bun |
+| Kiểm thử E2E | **Playwright** trên prod, **không publish** | Chỉ có prod; không bao giờ đưa bài test lên site thật |
+| Cảnh báo | **Email** (SNS) | Discord tạm bỏ |
 
 ### Tính năng phiên bản đầu
 
@@ -65,7 +71,7 @@ Tên miền gốc `oki-dev.xyz` để dành cho mục đích khác.
 
 ### Giả định
 
-- Một tài khoản AWS, một tài khoản quản trị duy nhất (tác giả).
+- Một tài khoản AWS. Cognito có một tài khoản quản trị (tác giả) và một tài khoản E2E bị giới hạn quyền (mục 5.4).
 - Quy mô: vài trăm bài trở xuống.
 
 ---
@@ -133,7 +139,7 @@ flowchart LR
 |---|---|
 | **S3 + CloudFront (blog)** | Phục vụ HTML tĩnh. Ảnh dùng chung distribution qua đường dẫn `/media/*` |
 | **S3 + CloudFront (admin)** | Phục vụ SPA React quản trị |
-| **Cognito User Pool** | 1 tài khoản quản trị; tắt tự đăng ký; bật MFA |
+| **Cognito User Pool** | Tài khoản quản trị + tài khoản E2E (nhóm `e2e`, bị giới hạn quyền); tắt tự đăng ký; bắt buộc MFA |
 | **API Gateway HTTP API + Lambda API** | JWT authorizer (Cognito); một Lambda xử lý các route CRUD |
 | **DynamoDB** | Lưu bài viết (Markdown, metadata, trạng thái nháp/hẹn giờ/đã đăng) |
 | **EventBridge Scheduler** | Đến giờ hẹn → chuyển bài sang "đã đăng" và kích hoạt build |
@@ -214,7 +220,7 @@ stateDiagram-v2
 
 ### API — `api.oki-dev.xyz`
 
-Mọi route yêu cầu JWT của Cognito (JWT authorizer của API Gateway HTTP API).
+Mọi route yêu cầu JWT của Cognito (JWT authorizer của API Gateway HTTP API). Người dùng thuộc nhóm Cognito **`e2e`** bị Lambda API từ chối (`403`) ở các route `publish`, `unpublish` và `POST /builds` — đảm bảo test E2E không bao giờ đưa nội dung lên site thật.
 
 | Method | Route | Chức năng |
 |---|---|---|
@@ -231,7 +237,7 @@ Mọi route yêu cầu JWT của Cognito (JWT authorizer của API Gateway HTTP 
 
 ### Ảnh
 
-- Key: `media/<yyyy>/<ulid>.<ext>`, phục vụ qua `https://blog.oki-dev.xyz/media/...`.
+- Key: `media/<yyyy>/<ulid>.<ext>`, phục vụ qua `https://blog.oki-dev.xyz/media/...`. Ảnh do tài khoản E2E upload nằm ở `media/e2e/...` và được **S3 lifecycle tự xoá sau 1 ngày**.
 - Presigned **POST** (không phải PUT) để S3 tự áp giới hạn dung lượng (`content-length-range`) và `Content-Type`.
 - Phiên bản đầu **không** theo dõi ảnh trong database (YAGNI) — ảnh không còn được dùng vẫn nằm lại trong S3.
 
@@ -276,7 +282,7 @@ Cấu hình: container image, 2048 MB RAM, timeout 5 phút, ephemeral storage `/
 - **Site cũ giữ nguyên** — chỉ đồng bộ S3 khi `astro build` thành công.
 - SQS thử lại 1 lần (`maxReceiveCount = 2`); vẫn lỗi → message vào **DLQ**, `BUILD/LATEST = failed` kèm lỗi.
 - Trang quản trị hiển thị lỗi + nút **"Build lại"** (`POST /builds`).
-- **Cảnh báo:** message rơi vào DLQ → CloudWatch Alarm → SNS → **email** và **Discord**. Chi tiết ở Phần 5.
+- **Cảnh báo:** message rơi vào DLQ → CloudWatch Alarm → SNS → **email**. Chi tiết ở Phần 5.
 
 ### 3.6 Thời gian thực tế
 
@@ -345,12 +351,12 @@ my-blog/
 │   └── admin/         # React + Vite — trang quản trị
 ├── services/
 │   ├── api/           # Lambda API + handler lịch hẹn
-│   ├── build/         # Lambda Build: Dockerfile + handler (astro build, đồng bộ S3, invalidate)
-│   └── notifier/      # Lambda gửi cảnh báo Discord
+│   └── build/         # Lambda Build: Dockerfile + handler (astro build, đồng bộ S3, invalidate)
 ├── packages/
 │   ├── shared/        # Kiểu Post, trạng thái, schema (zod) dùng chung
 │   └── markdown/      # Markdown → HTML, dùng chung site + admin
 ├── infra/             # CDK app (TypeScript)
+├── e2e/               # Playwright — test E2E trên prod
 └── docs/
 ```
 
@@ -370,6 +376,112 @@ services/api/src/
 - Đổi hạ tầng chỉ đụng `adapters/`.
 - Các app/service còn lại giữ cấu trúc đơn giản.
 
-## 5. Xử lý lỗi, bảo mật, kiểm thử & CI/CD
+## 5. Xử lý lỗi, bảo mật, giám sát, kiểm thử & CI/CD ✅
 
-_Chưa thiết kế._
+### 5.1 Xử lý lỗi (API)
+
+Định dạng lỗi thống nhất: `{ "error": { "code": "SLUG_TAKEN", "message": "..." } }`.
+
+| HTTP | Khi nào |
+|---|---|
+| `400` | Dữ liệu không hợp lệ (zod schema trong `packages/shared`) |
+| `401` | Thiếu/hết hạn JWT (API Gateway tự trả) |
+| `403` | Tài khoản E2E gọi route bị cấm |
+| `404` | Không tìm thấy bài |
+| `409` | Lệch `version` hoặc slug đã bị dùng |
+| `500` | Lỗi khác — log đầy đủ kèm `requestId`, người dùng chỉ thấy thông báo chung |
+
+- Log JSON bằng **Powertools for AWS Lambda (TypeScript)**; giữ log **30 ngày**.
+- Trang quản trị hiển thị lỗi tương ứng; `401` → tự làm mới token, không được thì chuyển về đăng nhập.
+
+### 5.2 Bảo mật
+
+| Hạng mục | Cách làm |
+|---|---|
+| Cognito | Tắt tự đăng ký; **bắt buộc MFA (TOTP)**; mật khẩu mạnh. Tài khoản quản trị và E2E tạo **bằng tay qua CLI một lần**, không để mật khẩu trong code |
+| API | JWT authorizer chỉ nhận token của app client admin; CORS chỉ `https://admin.oki-dev.xyz`; throttling 20 req/s, burst 40 |
+| S3 | Block Public Access; CloudFront đọc qua OAC; SSE-S3; bắt buộc HTTPS (bucket policy `aws:SecureTransport`) |
+| Upload ảnh | Presigned POST hết hạn 5 phút, chỉ `image/*`, ≤ 10MB, **key do server sinh** |
+| Markdown | **Tắt HTML thô** + `rehype-sanitize` — lớp chống XSS phòng khi tài khoản bị lộ |
+| Header | CloudFront response headers policy: HSTS, `X-Content-Type-Options`, `Referrer-Policy`, `X-Frame-Options`; trang admin thêm **CSP** (chỉ kết nối tới API và Cognito) |
+| IAM | Quyền tối thiểu qua `grant*` của CDK (ví dụ Lambda Build chỉ đọc bảng, ghi bucket site, invalidate distribution blog) |
+| GitHub OIDC | Role deploy chỉ tin đúng repo GitHub của blog (tên owner/repo truyền vào CDK qua context) và nhánh `refs/heads/main`. E2E gọi API bằng JWT của tài khoản E2E, không cần quyền AWS |
+| Bảo vệ dữ liệu | DynamoDB **PITR**; bucket ảnh **versioning**; bảng + bucket ảnh `RemovalPolicy.RETAIN` |
+
+### 5.3 Giám sát & cảnh báo (email)
+
+```
+CloudWatch Alarms / AWS Budgets ──► SNS topic "blog-alerts" ──► Email
+```
+
+| Cảnh báo | Điều kiện |
+|---|---|
+| Build thất bại | DLQ có ≥ 1 message |
+| Lambda API lỗi | ≥ 5 lỗi trong 5 phút |
+| Lambda Build lỗi | ≥ 1 lỗi |
+| Vượt ngân sách | AWS Budgets: chi phí dự kiến tháng > $5 |
+
+Alarm gửi cả khi trở lại `OK` để biết sự cố đã hết. Email nhận cảnh báo truyền vào CDK qua context, không hard-code.
+
+### 5.4 Kiểm thử
+
+| Tầng | Cách test | Công cụ |
+|---|---|---|
+| `domain/`, slug, `markdown` | Unit test hàm thuần | Vitest |
+| `usecases/` | Adapter giả trong bộ nhớ (in-memory fake) | Vitest |
+| `adapters/` | Mock AWS SDK | `aws-sdk-client-mock` |
+| Site Astro | `astro build` với **dữ liệu mẫu** (content loader đọc JSON thay DynamoDB), kiểm tra các trang chính được sinh | Vitest + script |
+| Hạ tầng | Assertion các thuộc tính bảo mật (bucket không public, API có authorizer, bật PITR…) | `aws-cdk-lib/assertions` |
+| Admin | Component test phần có logic (hộp thoại Publish, chuyển múi giờ) | Vitest + Testing Library |
+| **E2E** | Trên **prod**, sau mỗi lần deploy, **không publish** (chi tiết dưới) | **Playwright** |
+
+#### E2E
+
+**Site đọc (chỉ đọc):**
+
+- Trang chủ tải được, có danh sách bài.
+- Mở một bài → nội dung hiển thị; chuyển sang bài khác không tải lại toàn trang (View Transitions).
+- Trang tag liệt kê đúng bài; tìm kiếm trả kết quả; đường dẫn lạ → trang 404.
+- Ngày hiển thị theo múi giờ trình duyệt (chạy với `timezoneId` Asia/Tokyo và Asia/Ho_Chi_Minh).
+- Blog chưa có bài nào → các test cần bài viết được **skip** kèm cảnh báo, không fail.
+
+**Trang quản trị (không publish):**
+
+- Đăng nhập qua Cognito Managed Login bằng **tài khoản E2E**; mã MFA sinh từ TOTP secret (`otplib`).
+- Tạo bản nháp (tiêu đề tiền tố `[E2E]`) → sửa → xác nhận tự lưu → upload ảnh → kiểm tra `![](url)` được chèn và xem trước hiển thị ảnh → xoá bài.
+- Mở hộp thoại Publish, chuyển múi giờ VN/JP và kiểm tra giờ quy đổi — **không bấm xác nhận**.
+- Gọi `publish` bằng tài khoản E2E → nhận `403` (kiểm tra lớp bảo vệ).
+
+**Cơ chế an toàn:**
+
+- Tài khoản E2E thuộc nhóm Cognito `e2e` → API chặn `publish`/`unpublish`/`POST /builds` (mục 2).
+- `afterAll` xoá bài `[E2E]`; thêm bước dọn dẹp xoá mọi bài `[E2E]` cũ hơn 1 giờ (phòng lần chạy trước bị ngắt giữa chừng).
+- Ảnh E2E nằm ở `media/e2e/`, S3 lifecycle tự xoá sau 1 ngày.
+- Bí mật (mật khẩu, TOTP secret của tài khoản E2E) lưu trong **GitHub Secrets**; chạy được trên máy local qua biến môi trường.
+
+### 5.5 CI/CD — GitHub Actions
+
+| Sự kiện | Bước |
+|---|---|
+| Pull request | `pnpm install` → lint → typecheck → unit/integration test → `cdk synth` |
+| Push `main` | Như trên → build admin → `cdk deploy --all` → gửi message build vào SQS (build lại site bằng image mới) → **chờ build `success`** (đọc item `BUILD/LATEST`, timeout 5 phút) → **chạy E2E** |
+
+- `concurrency` group: không bao giờ hai lượt deploy chồng nhau.
+- E2E thất bại → workflow đỏ → GitHub gửi email. Không tự rollback (bản đầu).
+- **Cấu hình admin** (URL API, Cognito ID) do CDK sinh thành `/config.json` khi deploy → admin build một lần, không phụ thuộc output deploy.
+- **Kiến trúc CPU:** Lambda zip (API) chạy **arm64**; Lambda Build (container) chạy **x86_64** để build image trên runner GitHub không cần giả lập ARM.
+- **Stack CDK:**
+  - `CertStack` (`us-east-1`) — chứng chỉ CloudFront.
+  - `BlogStack` (`ap-northeast-1`) — mọi thứ còn lại, dùng `crossRegionReferences`.
+  - `CiStack` — OIDC provider + role deploy cho GitHub, deploy tay một lần.
+- **Việc làm tay một lần:** `cdk bootstrap` hai region; deploy `CiStack`; tạo tài khoản quản trị + tài khoản E2E (nhóm `e2e`) trên Cognito và thiết lập MFA; lưu bí mật E2E vào GitHub Secrets.
+- **Dọn image ECR:** chạy `cdk gc` định kỳ để xoá image không còn dùng.
+
+### 5.6 Chi phí ước tính / tháng
+
+| Hạng mục | Chi phí |
+|---|---|
+| Route 53 hosted zone | $0.50 |
+| ECR (image Lambda Build) | ~$0.10 |
+| CloudFront, S3, Lambda, DynamoDB, SQS, Scheduler, Cognito | ~$0 (free tier / mức dùng rất thấp) |
+| **Tổng** | **~$1/tháng** |
