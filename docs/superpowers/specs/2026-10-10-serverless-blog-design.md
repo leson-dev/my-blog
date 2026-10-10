@@ -38,7 +38,7 @@ Blog cá nhân, một tác giả duy nhất, viết bài qua trang quản trị 
 | Soạn bài | **Markdown** + xem trước | Gọn, dễ sao lưu/di chuyển, tô màu code khi build |
 | Backend | **Lambda Node.js** (TypeScript) | Cùng ngôn ngữ với frontend |
 | Hạ tầng (IaC) | **AWS CDK** (TypeScript) | Gọn nhất, AWS quản lý state, cùng ngôn ngữ |
-| Build khi publish | **Lambda container image** chạy `astro build` | Nhanh (15–30 s), ít thành phần, code site & code build luôn cùng phiên bản |
+| Build khi publish | **Lambda container image** chạy `astro build` | Nhanh (bài lên site trong ~30–60 s), ít thành phần, code site & code build luôn cùng phiên bản |
 | Region chính | **`ap-northeast-1` (Tokyo)** | Chứng chỉ cho CloudFront đặt ở `us-east-1` (bắt buộc) |
 | Môi trường | Chỉ **prod** | Đủ cho blog cá nhân |
 | CI/CD | **GitHub Actions**, push `main` → deploy prod | Tự động hoá, xác thực AWS qua OIDC |
