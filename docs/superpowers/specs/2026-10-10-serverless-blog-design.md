@@ -74,6 +74,15 @@ Tên miền gốc `oki-dev.xyz` để dành cho mục đích khác.
 
 ### Sơ đồ
 
+![Kiến trúc tổng thể](../../diagrams/architecture.png)
+
+> Sơ đồ vẽ bằng [awsdac](https://github.com/awslabs/diagram-as-code), nguồn: [`docs/diagrams/architecture.yaml`](../../diagrams/architecture.yaml).
+> Vẽ lại: `rm -f docs/diagrams/architecture.png && awsdac docs/diagrams/architecture.yaml -o docs/diagrams/architecture.png`
+> (awsdac hỏi xác nhận nếu file PNG đã tồn tại, nên xoá trước khi vẽ lại.)
+
+<details>
+<summary>Phiên bản Mermaid (xem nhanh trên GitHub)</summary>
+
 ```mermaid
 flowchart LR
     reader([Người đọc])
@@ -115,6 +124,8 @@ flowchart LR
     buildFn -->|ghi HTML| s3Site
     buildFn -->|invalidate| cfBlog
 ```
+
+</details>
 
 ### Thành phần
 

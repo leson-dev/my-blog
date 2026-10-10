@@ -1,0 +1,255 @@
+Diagram:
+  DefinitionFiles:
+    - Type: URL
+      Url: https://raw.githubusercontent.com/awslabs/diagram-as-code/main/definitions/definition-for-aws-icons-light.yaml
+
+  Resources:
+    Canvas:
+      Type: AWS::Diagram::Canvas
+      Direction: vertical
+      Children:
+        - Users
+        - AWSCloud
+
+    Users:
+      Type: AWS::Diagram::HorizontalStack
+      Children:
+        - Reader
+        - Author
+
+    Reader:
+      Type: AWS::Diagram::Resource
+      Preset: User
+      Title: Người đọc
+
+    Author:
+      Type: AWS::Diagram::Resource
+      Preset: User
+      Title: Tác giả
+
+    AWSCloud:
+      Type: AWS::Diagram::Cloud
+      Direction: vertical
+      Preset: AWSCloudNoLogo
+      Align: center
+      Children:
+        - Edge
+        - Tokyo
+        - DnsTls
+
+    Edge:
+      Type: AWS::Diagram::Resource
+      Preset: Generic group
+      Title: CloudFront (edge)
+      Children:
+        - CFBlog
+        - CFAdmin
+
+    DnsTls:
+      Type: AWS::Diagram::Resource
+      Preset: Generic group
+      Title: Global — DNS & chứng chỉ (ACM ở us-east-1)
+      Children:
+        - Route53
+        - ACM
+
+    Route53:
+      Type: AWS::Route53::HostedZone
+      Title: oki-dev.xyz
+
+    CFBlog:
+      Type: AWS::CloudFront
+      Title: blog.oki-dev.xyz
+
+    CFAdmin:
+      Type: AWS::CloudFront
+      Title: admin.oki-dev.xyz
+
+    ACM:
+      Type: AWS::CertificateManager
+      Title: Chứng chỉ HTTPS
+
+    Tokyo:
+      Type: AWS::Region
+      Title: ap-northeast-1 (Tokyo)
+      Direction: vertical
+      Children:
+        - Row1
+        - Row2
+        - Row3
+
+    Row1:
+      Type: AWS::Diagram::HorizontalStack
+      Children:
+        - S3Site
+        - S3Media
+        - S3Admin
+        - Cognito
+        - ApiGw
+
+    Row2:
+      Type: AWS::Diagram::HorizontalStack
+      Children:
+        - BuildFn
+        - BuildQueue
+        - ApiFn
+        - Scheduler
+
+    Row3:
+      Type: AWS::Diagram::HorizontalStack
+      Children:
+        - Table
+
+    S3Site:
+      Type: AWS::S3::Bucket
+      Title: Site tĩnh
+
+    S3Media:
+      Type: AWS::S3::Bucket
+      Title: Ảnh (/media)
+
+    S3Admin:
+      Type: AWS::S3::Bucket
+      Title: SPA quản trị
+
+    Cognito:
+      Type: AWS::Cognito::UserPool
+      Title: Cognito User Pool
+
+    ApiGw:
+      Type: AWS::ApiGateway
+      Title: api.oki-dev.xyz (HTTP API)
+
+    ApiFn:
+      Type: AWS::Lambda::Function
+      Title: Lambda API
+
+    Scheduler:
+      Type: AWS::Events::Rule
+      Title: EventBridge Scheduler
+
+    BuildQueue:
+      Type: AWS::SQS::Queue
+      Title: SQS FIFO (build)
+
+    BuildFn:
+      Type: AWS::Lambda::Function
+      Title: Lambda Build (Astro)
+
+    Table:
+      Type: AWS::DynamoDB::Table
+      Title: BlogTable
+
+  Links:
+    - Source: Reader
+      SourcePosition: S
+      Target: CFBlog
+      TargetPosition: N
+      Type: orthogonal
+      TargetArrowHead: {Type: Open}
+    - Source: Author
+      SourcePosition: S
+      Target: CFAdmin
+      TargetPosition: N
+      Type: orthogonal
+      TargetArrowHead: {Type: Open}
+    - Source: Author
+      SourcePosition: E
+      Target: Cognito
+      TargetPosition: N
+      Type: orthogonal
+      TargetArrowHead: {Type: Open}
+      Labels:
+        TargetLeft: {Title: đăng nhập}
+    - Source: Author
+      SourcePosition: E
+      Target: ApiGw
+      TargetPosition: N
+      Type: orthogonal
+      TargetArrowHead: {Type: Open}
+      Labels:
+        TargetRight: {Title: JWT}
+    - Source: CFBlog
+      SourcePosition: S
+      Target: S3Site
+      TargetPosition: N
+      Type: orthogonal
+      TargetArrowHead: {Type: Open}
+    - Source: CFBlog
+      SourcePosition: S
+      Target: S3Media
+      TargetPosition: N
+      Type: orthogonal
+      TargetArrowHead: {Type: Open}
+      Labels:
+        TargetRight: {Title: /media/*}
+    - Source: CFAdmin
+      SourcePosition: S
+      Target: S3Admin
+      TargetPosition: N
+      Type: orthogonal
+      TargetArrowHead: {Type: Open}
+    - Source: ApiGw
+      SourcePosition: S
+      Target: ApiFn
+      TargetPosition: N
+      Type: orthogonal
+      TargetArrowHead: {Type: Open}
+    - Source: ApiFn
+      SourcePosition: E
+      Target: Scheduler
+      TargetPosition: W
+      Type: orthogonal
+      SourceArrowHead: {Type: Open}
+      TargetArrowHead: {Type: Open}
+      Labels:
+        TargetLeft: {Title: hẹn giờ}
+    - Source: ApiFn
+      SourcePosition: N
+      Target: S3Media
+      TargetPosition: S
+      Type: orthogonal
+      LineStyle: dashed
+      TargetArrowHead: {Type: Open}
+      Labels:
+        TargetRight: {Title: presigned POST}
+    - Source: ApiFn
+      SourcePosition: W
+      Target: BuildQueue
+      TargetPosition: E
+      Type: orthogonal
+      TargetArrowHead: {Type: Open}
+    - Source: BuildQueue
+      SourcePosition: W
+      Target: BuildFn
+      TargetPosition: E
+      Type: orthogonal
+      TargetArrowHead: {Type: Open}
+    - Source: ApiFn
+      SourcePosition: S
+      Target: Table
+      TargetPosition: N
+      Type: orthogonal
+      TargetArrowHead: {Type: Open}
+    - Source: BuildFn
+      SourcePosition: S
+      Target: Table
+      TargetPosition: N
+      Type: orthogonal
+      TargetArrowHead: {Type: Open}
+      Labels:
+        SourceLeft: {Title: đọc bài}
+    - Source: BuildFn
+      SourcePosition: N
+      Target: S3Site
+      TargetPosition: S
+      Type: orthogonal
+      TargetArrowHead: {Type: Open}
+      Labels:
+        SourceLeft: {Title: ghi HTML}
+    - Source: BuildFn
+      Target: CFBlog
+      LineStyle: dashed
+      TargetArrowHead: {Type: Open}
+      Labels:
+        SourceLeft: {Title: invalidate}
