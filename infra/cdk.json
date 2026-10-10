@@ -1,0 +1,11 @@
+{
+  "app": "pnpm exec tsx bin/blog.ts",
+  "context": {
+    "account": "002581114203",
+    "region": "ap-northeast-1",
+    "domainName": "oki-dev.xyz",
+    "hostedZoneId": "Z05049371XH13FJE6L09",
+    "alertEmail": "nguyenleson0002@gmail.com",
+    "adminDevOrigin": "http://localhost:5173"
+  }
+}
