@@ -1,0 +1,31 @@
+{
+  "name": "@blog/markdown",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@blog/shared": "workspace:*",
+    "@shikijs/rehype": "catalog:",
+    "rehype-sanitize": "catalog:",
+    "rehype-slug": "catalog:",
+    "rehype-stringify": "catalog:",
+    "remark-gfm": "catalog:",
+    "remark-parse": "catalog:",
+    "remark-rehype": "catalog:",
+    "unified": "catalog:",
+    "unist-util-visit": "catalog:"
+  },
+  "devDependencies": {
+    "@types/hast": "catalog:",
+    "@types/node": "catalog:",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
+  }
+}
