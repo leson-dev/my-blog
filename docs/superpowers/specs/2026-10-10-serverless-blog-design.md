@@ -1,7 +1,7 @@
 # Thiết kế: Blog cá nhân serverless — oki-dev.xyz
 
 - **Ngày:** 2026-10-10
-- **Trạng thái:** Đang thiết kế — Phần 1/5 đã duyệt
+- **Trạng thái:** Đang thiết kế — Phần 1–2/5 đã duyệt
 - **Tác giả:** Son Nguyen
 
 ---
@@ -151,9 +151,89 @@ flowchart LR
 
 ---
 
-## 2. Dữ liệu & API
+## 2. Dữ liệu & API ✅
 
-_Đang thiết kế._
+### DynamoDB — một bảng `BlogTable`
+
+Khoá chính gồm **PK** (partition key — quyết định item nằm ở "ngăn" nào, cần biết để đọc nhanh) và **SK** (sort key — phân biệt/sắp xếp các item cùng PK). Cặp PK + SK là duy nhất. Bảng chứa nhiều loại dữ liệu, phân biệt bằng tiền tố của PK (single-table design). Chế độ tính tiền: **on-demand**.
+
+| Loại item | PK | SK | Mục đích |
+|---|---|---|---|
+| Bài viết | `POST#<id>` | `POST` | Nội dung + metadata bài |
+| Giữ slug | `SLUG#<slug>` | `SLUG` | Đảm bảo slug duy nhất; chứa `postId` |
+| Trạng thái build | `BUILD` | `LATEST` | Trang quản trị hiển thị tình trạng build |
+
+SK hiện chưa bắt buộc (mỗi PK một item) nhưng giữ lại để mở rộng (ví dụ lịch sử phiên bản `SK = VERSION#<n>`).
+
+#### Item bài viết
+
+| Trường | Ghi chú |
+|---|---|
+| `id` | ULID, sinh tự động |
+| `slug` | Duy nhất, dùng trong URL `/posts/<slug>` |
+| `title`, `excerpt`, `content` | `content` là Markdown. Giới hạn item 400KB của DynamoDB là quá đủ |
+| `tags` | Danh sách chuỗi, ví dụ `["aws","serverless"]` |
+| `coverImage` | Đường dẫn ảnh bìa, tuỳ chọn |
+| `status` | `draft` \| `scheduled` \| `published` |
+| `publishAt`, `publishedAt`, `createdAt`, `updatedAt` | ISO 8601, UTC |
+| `version` | Số nguyên, tăng mỗi lần lưu — chống ghi đè khi mở cùng bài ở hai tab (optimistic locking) |
+| `GSI1PK`, `GSI1SK` | `"POST"` và `updatedAt` — phục vụ GSI `byUpdated` |
+
+#### Giữ slug duy nhất
+
+Tạo bài hoặc đổi slug → **một transaction** ghi item bài viết + item `SLUG#<slug>` với điều kiện "chưa tồn tại" (và xoá item slug cũ khi đổi slug). Slug đã được dùng → transaction thất bại → API trả `409`.
+
+#### Trạng thái build
+
+`status`: `queued` | `running` | `success` | `failed`, kèm `updatedAt` và `error` (nếu thất bại).
+
+#### GSI `byUpdated`
+
+`GSI1PK = "POST"`, `GSI1SK = updatedAt`. Liệt kê mọi bài theo thời gian sửa mới nhất — dùng cho trang quản trị và Lambda Build. Quy mô vài trăm bài → một query là đủ.
+
+#### Tag
+
+Không có bảng riêng. Trang danh sách theo tag được sinh lúc build từ trường `tags`.
+
+### Vòng đời trạng thái bài viết
+
+```mermaid
+stateDiagram-v2
+    [*] --> draft: Tạo bài
+    draft --> published: Publish ngay
+    draft --> scheduled: Hẹn giờ
+    scheduled --> published: Đến giờ (EventBridge Scheduler)
+    scheduled --> draft: Huỷ hẹn
+    published --> draft: Gỡ bài
+    draft --> [*]: Xoá
+    scheduled --> [*]: Xoá (huỷ lịch)
+    published --> [*]: Xoá
+```
+
+**Thao tác kích hoạt build:** publish (ngay hoặc khi đến giờ), gỡ bài, xoá bài đã đăng, **lưu thay đổi cho bài đang `published`**. Sửa bản nháp / bài đang hẹn giờ **không** build.
+
+### API — `api.oki-dev.xyz`
+
+Mọi route yêu cầu JWT của Cognito (JWT authorizer của API Gateway HTTP API).
+
+| Method | Route | Chức năng |
+|---|---|---|
+| GET | `/posts` | Liệt kê tất cả bài (mọi trạng thái) |
+| POST | `/posts` | Tạo bản nháp |
+| GET | `/posts/{id}` | Chi tiết bài |
+| PUT | `/posts/{id}` | Cập nhật; gửi kèm `version`. Lệch version → `409` |
+| DELETE | `/posts/{id}` | Xoá bài (huỷ lịch hẹn nếu có) |
+| POST | `/posts/{id}/publish` | Body `{ publishAt? }` — không có hoặc ở quá khứ → đăng ngay; ở tương lai → hẹn giờ |
+| POST | `/posts/{id}/unpublish` | Gỡ bài / huỷ hẹn → về `draft` |
+| POST | `/uploads` | Trả presigned POST để upload ảnh thẳng lên S3 (≤ 10MB, chỉ `image/*`) |
+| GET | `/builds/latest` | Trạng thái build gần nhất |
+| POST | `/builds` | Build lại thủ công |
+
+### Ảnh
+
+- Key: `media/<yyyy>/<ulid>.<ext>`, phục vụ qua `https://blog.oki-dev.xyz/media/...`.
+- Presigned **POST** (không phải PUT) để S3 tự áp giới hạn dung lượng (`content-length-range`) và `Content-Type`.
+- Phiên bản đầu **không** theo dõi ảnh trong database (YAGNI) — ảnh không còn được dùng vẫn nằm lại trong S3.
 
 ## 3. Luồng publish & build
 
