@@ -72,6 +72,30 @@ describe("posts and versions", () => {
     expect(parse(res).error.code).toBe("VALIDATION_ERROR");
   });
 
+  it("returns the updated post after deleting a version, so the editor keeps the new version", async () => {
+    const deps = makeDeps();
+    const { id, version } = await createVi(deps);
+    const withJa = parse(
+      await handleHttp(
+        httpEvent("PUT /posts/{id}/versions/{lang}", {
+          params: { id, lang: "ja" },
+          body: { title: "AWS", excerpt: "", content: "", version },
+        }),
+        deps,
+        log(),
+      ),
+    );
+    const res = await handleHttp(
+      httpEvent("DELETE /posts/{id}/versions/{lang}", { params: { id, lang: "ja" } }),
+      deps,
+      log(),
+    );
+    expect(res.statusCode).toBe(200);
+    const body = parse(res);
+    expect(body.version).toBe(withJa.version + 1);
+    expect(body.versions.ja).toBeUndefined();
+  });
+
   it("returns 409 when deleting the only version and 204 when deleting the post", async () => {
     const deps = makeDeps();
     const { id } = await createVi(deps);

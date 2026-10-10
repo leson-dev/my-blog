@@ -40,6 +40,10 @@ export class InMemoryPostRepository implements PostRepository {
   }
 
   async delete(post: Post) {
+    const current = this.items.get(post.id);
+    if (!current || current.version !== post.version) {
+      throw new DomainError("VERSION_CONFLICT", "post was modified elsewhere");
+    }
     this.items.delete(post.id);
   }
 

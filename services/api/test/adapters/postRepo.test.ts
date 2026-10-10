@@ -147,6 +147,19 @@ describe("update", () => {
 });
 
 describe("delete", () => {
+  it("only deletes the post when its version is unchanged", async () => {
+    ddb.on(TransactWriteCommand).resolves({});
+    await repo.delete(bilingual(3));
+    const del = transactItems()[0]?.Delete;
+    expect(del?.ConditionExpression).toBe("#v = :v");
+    expect(del?.ExpressionAttributeValues).toEqual({ ":v": 3 });
+  });
+
+  it("maps a failed version condition on delete to VERSION_CONFLICT", async () => {
+    ddb.on(TransactWriteCommand).rejects(cancelled("ConditionalCheckFailed", "None", "None"));
+    await expect(repo.delete(bilingual())).rejects.toMatchObject({ code: "VERSION_CONFLICT" });
+  });
+
   it("deletes the post and every slug reservation", async () => {
     ddb.on(TransactWriteCommand).resolves({});
     await repo.delete(bilingual());

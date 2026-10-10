@@ -113,6 +113,20 @@ describe("deletePost", () => {
     expect(deps.buildQueue.reasons).toEqual([`delete:${post.id}`]);
   });
 
+  it("rejects the delete when the post changed after it was read", async () => {
+    const deps = makeDeps();
+    const post = await create(deps);
+    const realGet = deps.posts.get.bind(deps.posts);
+    deps.posts.get = async (id) => {
+      const snapshot = await realGet(id);
+      const stored = deps.posts.items.get(id);
+      if (stored) stored.version += 1; // an autosave lands between read and delete
+      return snapshot;
+    };
+    await expect(deletePost(deps, post.id)).rejects.toMatchObject({ code: "VERSION_CONFLICT" });
+    expect(deps.posts.items.has(post.id)).toBe(true);
+  });
+
   it("succeeds when cancelling the schedule fails", async () => {
     const deps = makeDeps();
     const post = await create(deps);

@@ -8,6 +8,7 @@ export interface PostRepository {
   create(post: Post): Promise<void>;
   /** Throws VERSION_CONFLICT when the stored version is not `prev.version`, SLUG_TAKEN on slug clash. */
   update(next: Post, prev: Post): Promise<void>;
+  /** Throws VERSION_CONFLICT when the stored version is not `post.version`. */
   delete(post: Post): Promise<void>;
 }
 

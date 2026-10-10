@@ -70,10 +70,9 @@ const routes: Record<string, Route> = {
       ),
   },
   "DELETE /posts/{id}/versions/{lang}": {
-    run: async ({ deps, param, lang, caller }) => {
-      await deleteVersion(deps, param("id"), lang(), caller);
-      return noContent();
-    },
+    // Returns the post so the editor keeps the new shared `version` for its next save.
+    run: async ({ deps, param, lang, caller }) =>
+      json(200, await deleteVersion(deps, param("id"), lang(), caller)),
   },
   "POST /posts/{id}/versions/{lang}/publish": {
     forbiddenForE2E: true,

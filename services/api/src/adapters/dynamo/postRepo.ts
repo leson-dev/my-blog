@@ -116,17 +116,33 @@ export class DynamoPostRepository implements PostRepository {
     }
   }
 
+  /** Throws VERSION_CONFLICT when the post changed since `post` was read (its slugs may differ). */
   async delete(post: Post): Promise<void> {
-    await this.db.send(
-      new TransactWriteCommand({
-        TransactItems: [
-          { Delete: { TableName: this.tableName, Key: postKey(post.id) } },
-          ...slugEntries(post).map((entry) => ({
-            Delete: { TableName: this.tableName, Key: slugKey(entry.slug) },
-          })),
-        ],
-      }),
-    );
+    try {
+      await this.db.send(
+        new TransactWriteCommand({
+          TransactItems: [
+            {
+              Delete: {
+                TableName: this.tableName,
+                Key: postKey(post.id),
+                ConditionExpression: "#v = :v",
+                ExpressionAttributeNames: { "#v": "version" },
+                ExpressionAttributeValues: { ":v": post.version },
+              },
+            },
+            ...slugEntries(post).map((entry) => ({
+              Delete: { TableName: this.tableName, Key: slugKey(entry.slug) },
+            })),
+          ],
+        }),
+      );
+    } catch (err) {
+      if (err instanceof TransactionCanceledException && firstFailed(err) === 0) {
+        throw versionConflict();
+      }
+      throw err;
+    }
   }
 
   private reserve(postId: string, entry: SlugEntry) {
