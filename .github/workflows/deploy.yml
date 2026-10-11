@@ -3,12 +3,16 @@ name: deploy
 on:
   push:
     branches: [main]
-    # Documentation-only merges change nothing that is deployed. `deploy` is not a required
-    # check, so skipping it never blocks a pull request; run it by hand with workflow_dispatch.
-    paths-ignore:
-      - "**/*.md"
-      - "docs/**"
-      - "LICENSE"
+    # Skip merges that change nothing running in production. `deploy` is not a required check,
+    # so skipping it never blocks a pull request; run it by hand with workflow_dispatch.
+    # Changes to this file still deploy, so a broken deploy workflow shows up immediately.
+    paths:
+      - "**"
+      - "!**/*.md"
+      - "!docs/**"
+      - "!LICENSE"
+      - "!.github/workflows/ci.yml"
+      - "!.github/workflows/gc.yml"
   workflow_dispatch:
 
 # Never two deploys (or a deploy and gc) at once; a running deploy is never cancelled.
