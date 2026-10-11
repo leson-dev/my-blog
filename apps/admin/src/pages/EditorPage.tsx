@@ -262,6 +262,9 @@ export function EditorPage({
           <Preview title={draft.title} markdown={draft.content} />
         </section>
         <aside className="col-info" aria-label="Thông tin">
+          <button type="button" className="drawer-close" onClick={() => setInfoOpen(false)}>
+            ✕ Đóng
+          </button>
           <InfoPanel
             post={post}
             lang={lang}

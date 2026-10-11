@@ -25,6 +25,9 @@ jobs:
       # One package at a time: the Shiki-based Markdown test is slow to warm up under parallel load.
       - run: pnpm -r --workspace-concurrency=1 --if-present test
       - run: pnpm --filter @blog/admin build
+      # Layout of the built admin at phone/tablet/desktop widths (fake API, no AWS).
+      - run: pnpm --filter @blog/admin exec playwright install --with-deps chromium
+      - run: pnpm --filter @blog/admin test:layout
       - name: cdk synth (no AWS credentials needed)
         working-directory: infra
         run: pnpm exec cdk synth --all -q

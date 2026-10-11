@@ -9,7 +9,8 @@
     "build": "vite build",
     "preview": "vite preview --port 5173",
     "typecheck": "tsc -p tsconfig.json",
-    "test": "vitest run"
+    "test": "vitest run",
+    "test:layout": "playwright test"
   },
   "dependencies": {
     "@blog/markdown": "workspace:*",
@@ -27,6 +28,7 @@
     "zod": "catalog:"
   },
   "devDependencies": {
+    "@playwright/test": "catalog:",
     "@testing-library/dom": "catalog:",
     "@testing-library/react": "catalog:",
     "@testing-library/user-event": "catalog:",

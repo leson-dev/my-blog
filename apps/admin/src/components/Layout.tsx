@@ -27,38 +27,45 @@ export function Layout({
   return (
     <div className="app">
       <header className="topbar">
-        <Link to="/" className="logo">
-          ~/oki-dev/admin$
-        </Link>
-        <nav className="crumbs" aria-label="Vị trí">
-          {crumbs.map((crumb) => (
-            <span key={crumb.label}>
-              {" / "}
-              {crumb.to ? <Link to={crumb.to}>{crumb.label}</Link> : crumb.label}
+        <div className="topbar-main">
+          <Link to="/" className="logo">
+            ~/oki-dev/admin$
+          </Link>
+          <nav className="crumbs" aria-label="Vị trí">
+            {crumbs.map((crumb) => (
+              <span key={crumb.label}>
+                {" / "}
+                {crumb.to ? <Link to={crumb.to}>{crumb.label}</Link> : crumb.label}
+              </span>
+            ))}
+          </nav>
+          <span
+            className={`build build-${label.tone}`}
+            title={build.state?.error ?? build.error ?? label.text}
+          >
+            {label.text}
+          </span>
+          <button
+            type="button"
+            className="btn-link"
+            aria-label="Build lại"
+            disabled={label.tone === "busy"}
+            onClick={() => void build.rebuild()}
+          >
+            <span className="label-wide">Build lại</span>
+            <span className="label-narrow" aria-hidden="true">
+              ↻
             </span>
-          ))}
-        </nav>
-        <span
-          className={`build build-${label.tone}`}
-          title={build.state?.error ?? build.error ?? undefined}
-        >
-          {label.text}
-        </span>
-        <button
-          type="button"
-          className="btn-link"
-          disabled={label.tone === "busy"}
-          onClick={() => void build.rebuild()}
-        >
-          Build lại
-        </button>
-        {savedAt ? <span className="saved">đã lưu {formatClock(savedAt)}</span> : null}
-        <span className="spacer" />
-        {actions}
-        <Link to="/tags">tags</Link>
-        <button type="button" className="btn-link" onClick={() => auth.logout()}>
-          đăng xuất
-        </button>
+          </button>
+          {savedAt ? <span className="saved">đã lưu {formatClock(savedAt)}</span> : null}
+          <span className="spacer" />
+          <Link to="/tags">tags</Link>
+          <button type="button" className="btn-link" onClick={() => auth.logout()}>
+            đăng xuất
+          </button>
+        </div>
+        {/* Page actions (publish, ⚙): a second row of their own on phones. */}
+        {actions ? <div className="topbar-actions">{actions}</div> : null}
       </header>
       <main className="main">{children}</main>
     </div>

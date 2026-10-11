@@ -31,3 +31,5 @@ infra/cdk-outputs.json
 apps/admin/dev-config.json
 e2e/test-results/
 e2e/playwright-report/
+apps/admin/test-results/
+apps/admin/playwright-report/
