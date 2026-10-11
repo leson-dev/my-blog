@@ -14,7 +14,7 @@ export class CiStack extends Stack {
   readonly deployRole: iam.Role;
   readonly gcRole: iam.Role;
 
-  constructor(scope: Construct, id: string, props: StackProps & { githubRepo: string }) {
+  constructor(scope: Construct, id: string, props: StackProps & { githubOidcSubject: string }) {
     super(scope, id, props);
     const { account, region } = this;
 
@@ -27,7 +27,7 @@ export class CiStack extends Stack {
       new iam.WebIdentityPrincipal(provider.oidcProviderArn, {
         StringEquals: {
           [`${GITHUB_ISSUER}:aud`]: "sts.amazonaws.com",
-          [`${GITHUB_ISSUER}:sub`]: `repo:${props.githubRepo}:ref:refs/heads/main`,
+          [`${GITHUB_ISSUER}:sub`]: `${props.githubOidcSubject}:ref:refs/heads/main`,
         },
       });
 

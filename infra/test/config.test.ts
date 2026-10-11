@@ -21,6 +21,7 @@ describe("readConfig", () => {
 
   it("trusts the GitHub repository the blog actually lives in", () => {
     const cdkJson = JSON.parse(readFileSync(join(import.meta.dirname, "../cdk.json"), "utf8"));
-    expect(cdkJson.context.githubRepo).toBe("leson-dev/my-blog");
+    // GitHub's immutable subject: owner and repository IDs survive renames of either.
+    expect(cdkJson.context.githubOidcSubject).toBe("repo:leson-dev@124803053/my-blog@1413856263");
   });
 });

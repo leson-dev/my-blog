@@ -7,7 +7,7 @@
     "hostedZoneId": "Z05049371XH13FJE6L09",
     "alertEmail": "nguyenleson0002@gmail.com",
     "adminDevOrigin": "http://localhost:5173",
-    "githubRepo": "leson-dev/my-blog",
+    "githubOidcSubject": "repo:leson-dev@124803053/my-blog@1413856263",
     "@aws-cdk/core:defaultCrossStackReferences": "strong"
   }
 }

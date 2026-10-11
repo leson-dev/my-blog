@@ -7,8 +7,11 @@ export interface BlogConfig {
   hostedZoneId: string;
   alertEmail: string;
   adminDevOrigin: string;
-  /** "owner/repo" trusted by the GitHub OIDC roles. */
-  githubRepo: string;
+  /**
+   * GitHub OIDC subject prefix of the repository, in GitHub's immutable form
+   * `repo:<owner>@<ownerId>/<repo>@<repoId>` (see GET /repos/{owner}/{repo}/actions/oidc/customization/sub).
+   */
+  githubOidcSubject: string;
   blogHost: string;
   adminHost: string;
   apiHost: string;
@@ -21,7 +24,7 @@ const KEYS = [
   "hostedZoneId",
   "alertEmail",
   "adminDevOrigin",
-  "githubRepo",
+  "githubOidcSubject",
 ] as const;
 
 export function readConfig(app: App): BlogConfig {

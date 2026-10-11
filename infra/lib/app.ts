@@ -33,6 +33,6 @@ export function createStacks(
     repoRoot,
     adminDist,
   });
-  const ci = new CiStack(app, "BlogCi", { env, githubRepo: config.githubRepo });
+  const ci = new CiStack(app, "BlogCi", { env, githubOidcSubject: config.githubOidcSubject });
   return { cert, data, blog, ci };
 }

@@ -43,7 +43,7 @@ describe("CiStack", () => {
       expect(trust?.Condition).toEqual({
         StringEquals: {
           "token.actions.githubusercontent.com:aud": "sts.amazonaws.com",
-          "token.actions.githubusercontent.com:sub": "repo:example/blog:ref:refs/heads/main",
+          "token.actions.githubusercontent.com:sub": "repo:example@1/blog@2:ref:refs/heads/main",
         },
       });
     },

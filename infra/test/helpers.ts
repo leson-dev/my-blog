@@ -10,7 +10,7 @@ export const TEST_CONTEXT = {
   hostedZoneId: "ZTEST123",
   alertEmail: "alerts@example.dev",
   adminDevOrigin: "http://localhost:5173",
-  githubRepo: "example/blog",
+  githubOidcSubject: "repo:example@1/blog@2",
 };
 
 /** An app with test context; Lambda bundling is skipped to keep synth fast. */
