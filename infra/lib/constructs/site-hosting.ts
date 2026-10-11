@@ -21,7 +21,7 @@ const privateBucket = (scope: Construct, id: string, props: s3.BucketProps = {})
     ...props,
   });
 
-/** Uploaded images: retained and versioned; e2e uploads expire after a day. */
+/** Uploaded images: retained and versioned; old versions expire after 30 days. */
 export const createMediaBucket = (scope: Construct, id: string, config: BlogConfig) =>
   privateBucket(scope, id, {
     removalPolicy: RemovalPolicy.RETAIN,
@@ -35,15 +35,7 @@ export const createMediaBucket = (scope: Construct, id: string, config: BlogConf
         maxAge: 3000,
       },
     ],
-    lifecycleRules: [
-      {
-        id: "expire-e2e-uploads",
-        prefix: "media/e2e/",
-        expiration: Duration.days(1),
-        noncurrentVersionExpiration: Duration.days(1),
-      },
-      { id: "expire-old-versions", noncurrentVersionExpiration: Duration.days(30) },
-    ],
+    lifecycleRules: [{ id: "expire-old-versions", noncurrentVersionExpiration: Duration.days(30) }],
   });
 
 export interface SiteHostingProps {

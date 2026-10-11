@@ -50,12 +50,6 @@ export class DataStack extends Stack {
       removalPolicy: RemovalPolicy.RETAIN,
     });
 
-    new cognito.CfnUserPoolGroup(this, "E2EGroup", {
-      userPoolId: this.userPool.userPoolId,
-      groupName: "e2e",
-      description: "E2E test account: may only modify drafts (enforced by the API)",
-    });
-
     const appUrls = [`https://${config.adminHost}/`, `${config.adminDevOrigin}/`];
     this.userPoolClient = this.userPool.addClient("AdminClient", {
       generateSecret: false,

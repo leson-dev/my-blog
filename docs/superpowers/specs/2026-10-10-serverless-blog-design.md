@@ -434,31 +434,25 @@ Alarm gửi cả khi trở lại `OK` để biết sự cố đã hết. Email n
 | Site Astro | `astro build` với **dữ liệu mẫu** (content loader đọc JSON thay DynamoDB), kiểm tra các trang chính được sinh | Vitest + script |
 | Hạ tầng | Assertion các thuộc tính bảo mật (bucket không public, API có authorizer, bật PITR…) | `aws-cdk-lib/assertions` |
 | Admin | Component test phần có logic (hộp thoại Publish, chuyển múi giờ) | Vitest + Testing Library |
-| **E2E** | Trên **prod**, sau mỗi lần deploy, **không publish** (chi tiết dưới) | **Playwright** |
+| **E2E** | Trên **prod**, sau mỗi lần deploy, **chỉ đọc** (chi tiết dưới) | **Playwright** |
 
-#### E2E
+#### E2E (chỉ đọc, sau mỗi lần deploy)
 
-**Site đọc (chỉ đọc):**
+> Quyết định 2026-10-11: **bỏ E2E có đăng nhập** (blog một tác giả; MFA bắt buộc làm tài khoản E2E mong manh và thêm một tài khoản ghi được vào prod; logic API đã có unit/integration test). Không có tài khoản E2E, không ghi dữ liệu prod.
 
-- Trang chủ tải được, có danh sách bài.
-- Mở một bài → nội dung hiển thị; chuyển sang bài khác không tải lại toàn trang (View Transitions).
-- Trang tag liệt kê đúng bài; tìm kiếm trả kết quả; đường dẫn lạ → trang 404.
-- Ngày hiển thị theo múi giờ trình duyệt (chạy với `timezoneId` Asia/Tokyo và Asia/Ho_Chi_Minh).
-- Blog chưa có bài nào → các test cần bài viết được **skip** kèm cảnh báo, không fail.
+**Smoke (HTTP, không trình duyệt):**
 
-**Trang quản trị (không publish):**
+- Blog: `/`, `/vi/`, `/ja/`, `/vi/tags/`, `/ja/tags/`, `/vi/search/`, `/pagefind/pagefind.js` → 200; đường dẫn lạ → 404; có HSTS, `nosniff`, `X-Frame-Options`.
+- API: `GET /posts` không token → 401.
+- Admin: `/` có CSP (`script-src 'self' 'wasm-unsafe-eval'`, `frame-ancestors 'none'`) và `no-cache`; `/config.json` trỏ đúng API + domain Cognito.
 
-- Đăng nhập qua Cognito Managed Login bằng **tài khoản E2E**; mã MFA sinh từ TOTP secret (`otplib`).
-- Tạo bản nháp (tiêu đề tiền tố `[E2E]`) → sửa → xác nhận tự lưu → upload ảnh → kiểm tra `![](url)` được chèn và xem trước hiển thị ảnh → xoá bài.
-- Mở hộp thoại Publish, chuyển múi giờ VN/JP và kiểm tra giờ quy đổi — **không bấm xác nhận**.
-- Gọi `publish` bằng tài khoản E2E → nhận `403` (kiểm tra lớp bảo vệ).
+**Site đọc (Playwright, Chromium, chạy hai lần với `timezoneId` Asia/Tokyo và Asia/Ho_Chi_Minh):**
 
-**Cơ chế an toàn:**
-
-- Tài khoản E2E thuộc nhóm Cognito `e2e` → API chặn `publish`/`unpublish`/`POST /builds` (mục 2).
-- `afterAll` xoá bài `[E2E]`; thêm bước dọn dẹp xoá mọi bài `[E2E]` cũ hơn 1 giờ (phòng lần chạy trước bị ngắt giữa chừng).
-- Ảnh E2E nằm ở `media/e2e/`, S3 lifecycle tự xoá sau 1 ngày.
-- Bí mật (mật khẩu, TOTP secret của tài khoản E2E) lưu trong **GitHub Secrets**; chạy được trên máy local qua biến môi trường.
+- `/` tiếng Việt; bấm `[vi|ja]` → `/ja/`; mở lại `/` → tự sang `/ja/`.
+- Ngày hiển thị theo múi giờ trình duyệt.
+- Mở một bài → nội dung hiển thị, không tải lại toàn trang (ClientRouter).
+- Trang tìm kiếm tải giao diện Pagefind; đường dẫn lạ → trang 404.
+- Blog chưa có bài nào → các test cần bài viết được **skip**, không fail.
 
 ### 5.5 CI/CD — GitHub Actions
 
@@ -483,7 +477,7 @@ Quy trình làm việc: tạo nhánh (`feat/...`, `fix/...`) → push → mở P
 | Sự kiện | Bước |
 |---|---|
 | Pull request | `pnpm install` → lint → typecheck → unit/integration test → `cdk synth` |
-| Push `main` (chỉ xảy ra khi merge PR) | Như trên → build admin → `cdk deploy --all` → gửi message build vào SQS (build lại site bằng image mới) → **chờ build `success`** (đọc item `BUILD/LATEST`, timeout 5 phút) → **chạy E2E** |
+| Push `main` (chỉ xảy ra khi merge PR) | Như trên → build admin → `cdk deploy --all` → gửi message build vào SQS (build lại site bằng image mới) → **chờ build `success`** (đọc item `BUILD/LATEST`, timeout 5 phút) → **chạy smoke + E2E chỉ đọc** |
 
 - `concurrency` group: không bao giờ hai lượt deploy chồng nhau.
 - **CI của PR không cần quyền AWS:** CDK không dùng `fromLookup`; hosted zone ID, tên miền, email cảnh báo, owner/repo GitHub truyền qua `cdk.json` context → `cdk synth` chạy được mà không cần đăng nhập AWS.
@@ -494,7 +488,7 @@ Quy trình làm việc: tạo nhánh (`feat/...`, `fix/...`) → push → mở P
   - `CertStack` (`us-east-1`) — chứng chỉ CloudFront.
   - `BlogStack` (`ap-northeast-1`) — mọi thứ còn lại, dùng `crossRegionReferences`.
   - `CiStack` — OIDC provider + role deploy cho GitHub, deploy tay một lần.
-- **Việc làm tay một lần:** tạo repo GitHub + ruleset cho `main`; `cdk bootstrap` hai region; deploy `CiStack`; tạo tài khoản quản trị + tài khoản E2E (nhóm `e2e`) trên Cognito và thiết lập MFA; lưu bí mật E2E vào GitHub Secrets.
+- **Việc làm tay một lần:** tạo repo GitHub + ruleset cho `main`; `cdk bootstrap` hai region; deploy `CiStack` (`BlogCi`); tạo tài khoản quản trị trên Cognito và thiết lập MFA.
 - **Dọn image ECR:** chạy `cdk gc` định kỳ để xoá image không còn dùng.
 
 ### 5.6 Chi phí ước tính / tháng

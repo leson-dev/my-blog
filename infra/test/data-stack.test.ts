@@ -65,7 +65,8 @@ describe("DataStack", () => {
         UsernameAttributes: ["email"],
       }),
     });
-    template.hasResourceProperties("AWS::Cognito::UserPoolGroup", { GroupName: "e2e" });
+    // Authenticated E2E was dropped (2026-10-11): no test account group.
+    template.resourceCountIs("AWS::Cognito::UserPoolGroup", 0);
   });
 
   it("creates a public OAuth code client for the admin with managed login", () => {

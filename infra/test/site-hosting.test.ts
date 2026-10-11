@@ -2,7 +2,7 @@ import { Stack } from "aws-cdk-lib";
 import { Match, Template } from "aws-cdk-lib/assertions";
 import * as acm from "aws-cdk-lib/aws-certificatemanager";
 import * as route53 from "aws-cdk-lib/aws-route53";
-import { describe, it } from "vitest";
+import { describe, expect, it } from "vitest";
 import { readConfig } from "../lib/config";
 import { createMediaBucket, SiteHosting } from "../lib/constructs/site-hosting";
 import { testApp } from "./helpers";
@@ -44,7 +44,7 @@ describe("SiteHosting", () => {
     });
   });
 
-  it("retains and versions the media bucket, expires e2e uploads and allows admin POST uploads", () => {
+  it("retains and versions the media bucket, expires old versions and allows admin POST uploads", () => {
     const template = synth();
     template.hasResource("AWS::S3::Bucket", {
       DeletionPolicy: "Retain",
@@ -52,7 +52,7 @@ describe("SiteHosting", () => {
         VersioningConfiguration: { Status: "Enabled" },
         LifecycleConfiguration: {
           Rules: Match.arrayWith([
-            Match.objectLike({ Prefix: "media/e2e/", ExpirationInDays: 1, Status: "Enabled" }),
+            Match.objectLike({ Id: "expire-old-versions", Status: "Enabled" }),
           ]),
         },
         CorsConfiguration: {
@@ -65,6 +65,10 @@ describe("SiteHosting", () => {
         },
       }),
     });
+    const prefixes = Object.values(template.findResources("AWS::S3::Bucket"))
+      .flatMap((b) => b.Properties?.LifecycleConfiguration?.Rules ?? [])
+      .map((r: { Prefix?: string }) => r.Prefix);
+    expect(prefixes).not.toContain("media/e2e/");
   });
 
   it("serves the blog through CloudFront with OAC, the index rewrite and long edge caching", () => {
