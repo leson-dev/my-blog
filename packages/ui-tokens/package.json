@@ -4,7 +4,8 @@
   "private": true,
   "exports": {
     "./tokens.css": "./tokens.css",
-    "./fonts.css": "./fonts.css"
+    "./fonts.css": "./fonts.css",
+    "./prose.css": "./prose.css"
   },
   "dependencies": {
     "@fontsource/be-vietnam-pro": "catalog:",

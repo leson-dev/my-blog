@@ -1,5 +1,6 @@
 import "@blog/ui-tokens/fonts.css";
 import "@blog/ui-tokens/tokens.css";
+import "@blog/ui-tokens/prose.css";
 import "./styles/admin.css";
 import { createRoot } from "react-dom/client";
 import { BrowserRouter } from "react-router";
