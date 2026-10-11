@@ -1,7 +1,11 @@
-import { describe, expect, it } from "vitest";
+import { beforeAll, describe, expect, it } from "vitest";
 import { renderMarkdown } from "../src/index";
 
 describe("renderMarkdown", () => {
+  // The first call builds the shared Shiki highlighter (grammars + regex engine), which can take
+  // several seconds on a cold CI runner; do it once here so each test only times its own work.
+  beforeAll(() => renderMarkdown("```ts\nconst warm = true;\n```"), 60_000);
+
   it("renders headings with ids and keeps Vietnamese and Japanese text", async () => {
     const html = await renderMarkdown("## Hàm đầu tiên\n\n紅葉の季節です。");
     expect(html).toMatch(/<h2 id="[^"]+">Hàm đầu tiên<\/h2>/);
