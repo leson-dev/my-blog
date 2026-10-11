@@ -331,10 +331,6 @@ button:disabled {
   outline: 1px solid var(--lang);
 }
 
-.cm-host .cm-cursor {
-  border-left-color: var(--fg-strong);
-}
-
 .cm-host .cm-gutters {
   display: none;
 }

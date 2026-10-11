@@ -10,6 +10,11 @@ export interface MarkdownEditorHandle {
   focus(): void;
 }
 
+/** CodeMirror's built-in theme is light-only (black caret); follow the C1 tokens instead. */
+const c1Theme = EditorView.theme({
+  ".cm-content": { caretColor: "var(--fg-strong)" },
+});
+
 /** Marks programmatic document replacements so they are not reported as typing. */
 const external = Annotation.define<boolean>();
 
@@ -43,6 +48,7 @@ export function MarkdownEditor({
           history(),
           keymap.of([...defaultKeymap, ...historyKeymap, indentWithTab]),
           markdown({ base: markdownLanguage, codeLanguages: languages }),
+          c1Theme,
           EditorView.lineWrapping,
           EditorView.contentAttributes.of({ "aria-label": "Nội dung Markdown" }),
           EditorView.updateListener.of((u) => {
