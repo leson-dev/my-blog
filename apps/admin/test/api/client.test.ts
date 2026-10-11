@@ -9,7 +9,7 @@ function setup(tokens: Array<string | null> = ["T1"]) {
   const queue = [...tokens];
   const auth = {
     accessToken: vi.fn(async () => (queue.length > 1 ? queue.shift() : queue[0]) ?? null),
-    refresh: vi.fn(async () => true),
+    refresh: vi.fn(async (): Promise<"ok" | "invalid" | "unavailable"> => "ok"),
     login: vi.fn(async (_returnTo: string) => {}),
   } satisfies Auth;
   const fetch = vi.fn<typeof globalThis.fetch>();
@@ -67,12 +67,21 @@ describe("createApiClient", () => {
 
   it("sends the user to login (once) when the refresh fails", async () => {
     const { client, fetch, auth } = setup();
-    auth.refresh.mockResolvedValueOnce(false);
+    auth.refresh.mockResolvedValueOnce("invalid");
     fetch.mockResolvedValueOnce(json(401, {}));
 
     await expect(client.request("GET", "/posts")).rejects.toMatchObject({ code: "UNAUTHORIZED" });
     expect(auth.login).toHaveBeenCalledExactlyOnceWith("/posts/1");
     expect(fetch).toHaveBeenCalledOnce();
+  });
+
+  it("reports a network problem, without logging out, when the refresh cannot reach Cognito", async () => {
+    const { client, fetch, auth } = setup();
+    auth.refresh.mockResolvedValueOnce("unavailable");
+    fetch.mockResolvedValueOnce(json(401, {}));
+
+    await expect(client.request("GET", "/posts")).rejects.toMatchObject({ code: "NETWORK" });
+    expect(auth.login).not.toHaveBeenCalled();
   });
 
   it("sends the user to login without calling the API when there is no token", async () => {

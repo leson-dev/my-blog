@@ -1,6 +1,9 @@
 import type { AdminConfig } from "../config";
 import { challengeFor, randomVerifier } from "./pkce";
 
+/** "invalid": the refresh token was refused (log in again); "unavailable": try again later. */
+export type RefreshResult = "ok" | "invalid" | "unavailable";
+
 export type KeyValueStore = Pick<Storage, "getItem" | "setItem" | "removeItem">;
 
 export interface SessionDeps {
@@ -40,7 +43,7 @@ const EXPIRY_MARGIN_MS = 60_000;
 export class AuthSession {
   private readonly config: AdminConfig;
   private readonly deps: SessionDeps;
-  private refreshing: Promise<boolean> | undefined;
+  private refreshing: Promise<RefreshResult> | undefined;
 
   constructor(config: AdminConfig, deps: SessionDeps) {
     this.config = config;
@@ -93,12 +96,18 @@ export class AuthSession {
     const tokens = this.load();
     if (!tokens) return null;
     if (tokens.expiresAt - EXPIRY_MARGIN_MS > this.deps.now()) return tokens.accessToken;
-    if (!(await this.refresh())) return null;
+    const result = await this.refresh();
+    if (result === "unavailable")
+      throw new Error("Không làm mới được phiên đăng nhập, kiểm tra mạng");
+    if (result === "invalid") return null;
     return this.load()?.accessToken ?? null;
   }
 
-  /** Uses the refresh token; on failure the session is dropped. Concurrent callers share one request. */
-  refresh(): Promise<boolean> {
+  /**
+   * Uses the refresh token. Only a refusal from Cognito drops the session; a network error or
+   * a 5xx keeps it so the next attempt can succeed. Concurrent callers share one request.
+   */
+  refresh(): Promise<RefreshResult> {
     this.refreshing ??= this.doRefresh().finally(() => {
       this.refreshing = undefined;
     });
@@ -118,28 +127,37 @@ export class AuthSession {
     this.deps.navigate(`${this.config.cognitoDomain}/logout?${params}`);
   }
 
-  private async doRefresh(): Promise<boolean> {
+  private async doRefresh(): Promise<RefreshResult> {
     const tokens = this.load();
-    if (!tokens) return false;
+    if (!tokens) return "invalid";
+    let res: Response;
     try {
-      const res = await this.tokenRequest({
+      res = await this.postToken({
         grant_type: "refresh_token",
         refresh_token: tokens.refreshToken,
       });
-      this.store(res, tokens.refreshToken);
-      return true;
     } catch {
-      this.deps.storage.removeItem(TOKENS_KEY);
-      return false;
+      return "unavailable";
     }
+    if (res.status === 400 || res.status === 401) {
+      this.deps.storage.removeItem(TOKENS_KEY);
+      return "invalid";
+    }
+    if (!res.ok) return "unavailable";
+    this.store((await res.json()) as TokenResponse, tokens.refreshToken);
+    return "ok";
   }
 
-  private async tokenRequest(body: Record<string, string>): Promise<TokenResponse> {
-    const res = await this.deps.fetch(`${this.config.cognitoDomain}/oauth2/token`, {
+  private postToken(body: Record<string, string>): Promise<Response> {
+    return this.deps.fetch(`${this.config.cognitoDomain}/oauth2/token`, {
       method: "POST",
       headers: { "content-type": "application/x-www-form-urlencoded" },
       body: new URLSearchParams({ client_id: this.config.userPoolClientId, ...body }),
     });
+  }
+
+  private async tokenRequest(body: Record<string, string>): Promise<TokenResponse> {
+    const res = await this.postToken(body);
     if (!res.ok) throw new Error(`token endpoint: HTTP ${res.status}`);
     return (await res.json()) as TokenResponse;
   }

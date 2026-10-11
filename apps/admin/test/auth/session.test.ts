@@ -154,12 +154,25 @@ describe("AuthSession", () => {
     expect(session.isLoggedIn()).toBe(false);
   });
 
+  it("keeps the session when the token endpoint cannot be reached", async () => {
+    const { session, fetch, tick } = await loggedIn();
+    tick(3600_000);
+    fetch.mockRejectedValueOnce(new TypeError("Failed to fetch"));
+    await expect(session.accessToken()).rejects.toThrow();
+    expect(session.isLoggedIn()).toBe(true);
+
+    fetch.mockResolvedValueOnce(tokenResponse({ error: "server" }, 503));
+    await expect(session.refresh()).resolves.toBe("unavailable");
+    expect(session.isLoggedIn()).toBe(true);
+  });
+
   it("shares one refresh request between concurrent callers", async () => {
     const { session, fetch } = await loggedIn();
     fetch.mockResolvedValue(
       tokenResponse({ access_token: "A2", id_token: "I2", expires_in: 3600 }),
     );
-    await Promise.all([session.refresh(), session.refresh(), session.refresh()]);
+    const results = await Promise.all([session.refresh(), session.refresh(), session.refresh()]);
+    expect(results).toEqual(["ok", "ok", "ok"]);
     expect(fetch).toHaveBeenCalledTimes(1);
   });
 

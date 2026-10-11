@@ -16,7 +16,7 @@ export class ApiError extends Error {
 
 export interface Auth {
   accessToken(): Promise<string | null>;
-  refresh(): Promise<boolean>;
+  refresh(): Promise<"ok" | "invalid" | "unavailable">;
   login(returnTo: string): Promise<void>;
 }
 
@@ -56,7 +56,11 @@ export function createApiClient(opts: ApiClientOptions): ApiClient {
     const res = await send(method, path, body, token);
     if (res.status !== 401) return res;
 
-    if (!(await opts.auth.refresh())) return unauthorized();
+    const refreshed = await opts.auth.refresh();
+    if (refreshed === "unavailable") {
+      throw new ApiError(0, "NETWORK", "Không làm mới được phiên đăng nhập, kiểm tra mạng");
+    }
+    if (refreshed === "invalid") return unauthorized();
     const fresh = await opts.auth.accessToken();
     if (!fresh) return unauthorized();
     const retried = await send(method, path, body, fresh);
