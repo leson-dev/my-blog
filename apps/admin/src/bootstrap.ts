@@ -3,6 +3,7 @@ import { endpoints } from "./api/endpoints";
 import { AuthSession, type SessionDeps } from "./auth/session";
 import type { AdminConfig } from "./config";
 import type { Services } from "./context";
+import { uploadImage } from "./lib/image";
 
 export interface BootEnv {
   loadConfig: () => Promise<AdminConfig>;
@@ -35,7 +36,11 @@ export async function bootstrap(env: BootEnv): Promise<BootResult> {
       fetch: env.fetch,
       currentPath: env.currentPath,
     });
-    return { kind: "ready", services: { api: endpoints(client), auth } };
+    const api = endpoints(client);
+    return {
+      kind: "ready",
+      services: { api, auth, uploadImage: (file) => uploadImage(api, file) },
+    };
   } catch (err) {
     return { kind: "error", message: err instanceof Error ? err.message : String(err) };
   }

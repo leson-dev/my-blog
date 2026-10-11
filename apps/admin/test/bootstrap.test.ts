@@ -62,6 +62,7 @@ describe("bootstrap", () => {
       location: { pathname: "/", search: "?code=c&state=s" },
     });
     expect(result.kind).toBe("ready");
+    expect(result.kind === "ready" && typeof result.services.uploadImage).toBe("function");
     expect(e.replaceUrl).toHaveBeenCalledWith("/tags");
   });
 

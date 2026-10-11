@@ -41,7 +41,11 @@ export function fakeApi(overrides: Partial<Record<keyof Endpoints, unknown>> = {
 }
 
 export function renderWithServices(ui: ReactElement, api: Endpoints = fakeApi()) {
-  const services: Services = { api, auth: { logout: vi.fn() } };
+  const services: Services = {
+    api,
+    auth: { logout: vi.fn() },
+    uploadImage: vi.fn(async (file: File) => `https://blog.oki-dev.xyz/media/2026/${file.name}`),
+  };
   // BrowserRouter on jsdom's real history: tests can assert on `location` after navigation.
   const utils = render(
     <BrowserRouter>
