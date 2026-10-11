@@ -29,3 +29,5 @@ npm-debug.log*
 .superpowers/
 infra/cdk-outputs.json
 apps/admin/dev-config.json
+e2e/test-results/
+e2e/playwright-report/
