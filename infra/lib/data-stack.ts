@@ -2,6 +2,7 @@ import { Duration, RemovalPolicy, Stack, type StackProps } from "aws-cdk-lib";
 import * as cognito from "aws-cdk-lib/aws-cognito";
 import * as dynamodb from "aws-cdk-lib/aws-dynamodb";
 import type { Construct } from "constructs";
+import { brandingAssets, brandingSettings } from "./branding";
 import type { BlogConfig } from "./config";
 
 /** Stateful resources: retained on delete, stack protected against termination. */
@@ -75,11 +76,13 @@ export class DataStack extends Stack {
       managedLoginVersion: cognito.ManagedLoginVersion.NEWER_MANAGED_LOGIN,
     });
 
-    // Managed login needs a style per app client; Plan 5 replaces the defaults with C1 colours.
+    // Managed login styled with the C1 colours and the ~/oki-dev$ logo (spec ui-i18n 4).
     new cognito.CfnManagedLoginBranding(this, "LoginBranding", {
       userPoolId: this.userPool.userPoolId,
       clientId: this.userPoolClient.userPoolClientId,
-      useCognitoProvidedValues: true,
+      useCognitoProvidedValues: false,
+      settings: brandingSettings(),
+      assets: brandingAssets(),
     });
   }
 }

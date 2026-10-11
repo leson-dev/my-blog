@@ -82,4 +82,18 @@ describe("DataStack", () => {
     });
     template.resourceCountIs("AWS::Cognito::ManagedLoginBranding", 1);
   });
+  it("styles the managed login page with C1 colours and the logo", () => {
+    const { template } = synth();
+    template.hasResourceProperties("AWS::Cognito::ManagedLoginBranding", {
+      UseCognitoProvidedValues: false,
+      Settings: Match.objectLike({
+        components: Match.objectLike({
+          pageBackground: Match.objectLike({ darkMode: Match.objectLike({ color: "0d1117ff" }) }),
+        }),
+      }),
+      Assets: Match.arrayWith([
+        Match.objectLike({ Category: "FORM_LOGO", ColorMode: "DARK", Extension: "SVG" }),
+      ]),
+    });
+  });
 });
