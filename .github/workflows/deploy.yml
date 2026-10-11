@@ -19,12 +19,10 @@ concurrency:
 permissions:
   contents: read
 
+# No CI re-run here: main only accepts pull requests whose `ci` check passed on a branch that
+# was up to date with main, so the merged tree is exactly the one CI tested.
 jobs:
-  checks:
-    uses: ./.github/workflows/ci.yml
-
   deploy:
-    needs: checks
     runs-on: ubuntu-24.04
     timeout-minutes: 45
     permissions:
