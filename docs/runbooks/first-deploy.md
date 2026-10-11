@@ -104,7 +104,7 @@ Cognito gửi mật khẩu tạm qua email. Lần đăng nhập đầu (khi có 
 ## CI/CD (GitHub Actions)
 
 - Repo: `leson-dev/my-blog` (public). `main`: chỉ nhận PR, squash, check `ci` (GitHub Actions) phải xanh, nhánh phải cập nhật, không bypass.
-- Quy trình: `git checkout -b feat/…` → push → `gh pr create` → CI xanh → `gh pr merge --squash` → workflow `deploy` tự chạy (deploy 3 stack, build lại site, smoke + E2E chỉ đọc).
+- Quy trình: `git checkout -b feat/…` → push → `gh pr create` → CI xanh → `gh pr merge --squash` → workflow `deploy` tự chạy (deploy 3 stack, build lại site, smoke + E2E chỉ đọc). `deploy` không chạy lại CI: ruleset đã bắt `ci` xanh trên nhánh cập nhật với `main`; deploy chạy tay (`workflow_dispatch`) thì không có CI đi trước.
 - Quyền AWS: role `blog-github-deploy` / `blog-github-gc` qua OIDC (stack `BlogCi`, deploy tay: `pnpm --filter @blog/infra exec cdk deploy BlogCi`). Không có access key/GitHub Secret.
 - Repo dùng **subject bất biến** của GitHub: `repo:leson-dev@124803053/my-blog@1413856263:ref:refs/heads/main` (context `githubOidcSubject` trong `infra/cdk.json`; xem bằng `gh api repos/leson-dev/my-blog/actions/oidc/customization/sub`). Đổi tên tài khoản/repo không làm hỏng; chuyển repo sang chủ khác thì phải sửa giá trị này + deploy lại `BlogCi`.
 - Merge chỉ sửa tài liệu (`*.md`, `docs/**`, `LICENSE`) **không** deploy (`paths-ignore`); `ci` vẫn chạy trên mọi PR vì là check bắt buộc của ruleset (bỏ qua thì PR kẹt). Deploy lại không đổi code: `gh workflow run deploy.yml`.

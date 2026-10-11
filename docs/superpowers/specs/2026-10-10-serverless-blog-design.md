@@ -477,7 +477,7 @@ Quy trình làm việc: tạo nhánh (`feat/...`, `fix/...`) → push → mở P
 | Sự kiện | Bước |
 |---|---|
 | Pull request | `pnpm install` → lint → typecheck → unit/integration test → `cdk synth` |
-| Push `main` (chỉ xảy ra khi merge PR) | Như trên → build admin → `cdk deploy --all` → gửi message build vào SQS (build lại site bằng image mới) → **chờ build `success`** (đọc item `BUILD/LATEST`, timeout 5 phút) → **chạy smoke + E2E chỉ đọc** |
+| Push `main` (chỉ xảy ra khi merge PR) | (không chạy lại CI — PR đã qua `ci` trên nhánh cập nhật với `main`) → build admin → `cdk deploy --all` → gửi message build vào SQS (build lại site bằng image mới) → **chờ build `success`** (đọc item `BUILD/LATEST`, timeout 5 phút) → **chạy smoke + E2E chỉ đọc** |
 
 - `concurrency` group: không bao giờ hai lượt deploy chồng nhau.
 - **CI của PR không cần quyền AWS:** CDK không dùng `fromLookup`; hosted zone ID, tên miền, email cảnh báo, owner/repo GitHub truyền qua `cdk.json` context → `cdk synth` chạy được mà không cần đăng nhập AWS.
