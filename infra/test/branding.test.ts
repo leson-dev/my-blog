@@ -30,4 +30,13 @@ describe("Cognito managed login branding (C1)", () => {
     ]);
     expect(Buffer.from(assets[0]?.bytes ?? "", "base64").toString()).toContain("~/oki-dev$");
   });
+  it("keeps the logo within Cognito's 1:1 to 4:1 width:height limit", () => {
+    for (const asset of brandingAssets()) {
+      const svg = Buffer.from(asset.bytes ?? "", "base64").toString();
+      const width = Number(/width="([\d.]+)"/.exec(svg)?.[1]);
+      const height = Number(/height="([\d.]+)"/.exec(svg)?.[1]);
+      expect(width / height, asset.colorMode).toBeGreaterThanOrEqual(1);
+      expect(width / height, asset.colorMode).toBeLessThanOrEqual(4);
+    }
+  });
 });
