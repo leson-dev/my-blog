@@ -3,14 +3,7 @@ import { BuildProvider } from "./build/BuildProvider";
 import { Layout } from "./components/Layout";
 import { EditorPage } from "./pages/EditorPage";
 import { PostListPage } from "./pages/PostListPage";
-
-function Placeholder({ title }: { title: string }) {
-  return (
-    <Layout crumbs={[{ label: title }]}>
-      <p className="muted">Đang xây dựng.</p>
-    </Layout>
-  );
-}
+import { TagsPage } from "./pages/TagsPage";
 
 function NotFound() {
   return (
@@ -33,7 +26,7 @@ export function App() {
       <Routes>
         <Route path="/" element={<PostListPage />} />
         <Route path="/posts/:id" element={<EditorRoute />} />
-        <Route path="/tags" element={<Placeholder title="tags" />} />
+        <Route path="/tags" element={<TagsPage />} />
         <Route path="*" element={<NotFound />} />
       </Routes>
     </BuildProvider>
