@@ -82,9 +82,10 @@ export function TagsPage() {
                 <tr key={tag.key}>
                   <th scope="row">{tag.key}</th>
                   {LANGS.map((l) => (
-                    <td key={l}>
+                    <td key={l} data-label={`tên ${l}`}>
                       <input
                         aria-label={`Tên ${l} của ${tag.key}`}
+                        placeholder={`tên ${l}`}
                         lang={l}
                         maxLength={LIMITS.tagNameMax}
                         value={row?.names[l] ?? ""}
@@ -98,7 +99,7 @@ export function TagsPage() {
                       />
                     </td>
                   ))}
-                  <td>{tag.postCount}</td>
+                  <td data-label="số bài:">{tag.postCount}</td>
                   <td className="muted">
                     {row?.status === "saving"
                       ? "đang lưu…"
