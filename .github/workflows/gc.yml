@@ -1,0 +1,45 @@
+name: gc
+
+on:
+  schedule:
+    - cron: "0 18 1 * *" # 03:00 JST on the 1st of each month
+  workflow_dispatch:
+    inputs:
+      action:
+        description: "print = report only, full = tag and delete"
+        type: choice
+        options: [print, full]
+        default: print
+
+concurrency:
+  group: deploy-prod
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  gc:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @blog/admin build
+      - uses: aws-actions/configure-aws-credentials@e1253824e5c10ff9df46874f81ed3ec929e19cfd # v6.3.0
+        with:
+          role-to-assume: arn:aws:iam::002581114203:role/blog-github-gc
+          aws-region: ap-northeast-1
+      # Only assets unused for 7+ days and created 30+ days ago; a rollback keeps working.
+      - name: cdk gc
+        working-directory: infra
+        run: >-
+          pnpm exec cdk gc aws://002581114203/ap-northeast-1 aws://002581114203/us-east-1
+          --unstable=gc --action=${{ inputs.action || 'full' }}
+          --rollback-buffer-days=7 --created-buffer-days=30 --confirm=false

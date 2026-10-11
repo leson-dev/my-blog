@@ -1,0 +1,53 @@
+name: deploy
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# Never two deploys (or a deploy and gc) at once; a running deploy is never cancelled.
+concurrency:
+  group: deploy-prod
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  checks:
+    uses: ./.github/workflows/ci.yml
+
+  deploy:
+    needs: checks
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @blog/admin build
+      - uses: aws-actions/configure-aws-credentials@e1253824e5c10ff9df46874f81ed3ec929e19cfd # v6.3.0
+        with:
+          role-to-assume: arn:aws:iam::002581114203:role/blog-github-deploy
+          aws-region: ap-northeast-1
+      - name: cdk deploy (application stacks only; BlogCi is deployed by hand)
+        working-directory: infra
+        run: pnpm exec cdk deploy BlogCert BlogData Blog --require-approval never --outputs-file cdk-outputs.json
+      - name: Rebuild the site with the new image
+        run: scripts/ci/trigger-build.sh infra/cdk-outputs.json
+      - run: pnpm --filter @blog/e2e exec playwright install --with-deps chromium
+      - name: Smoke + read-only E2E against production
+        run: pnpm --filter @blog/e2e e2e
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: failure()
+        with:
+          name: playwright-report
+          path: e2e/playwright-report
+          retention-days: 7
