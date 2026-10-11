@@ -1,6 +1,7 @@
 import { Link, Route, Routes } from "react-router";
 import { BuildProvider } from "./build/BuildProvider";
 import { Layout } from "./components/Layout";
+import { PostListPage } from "./pages/PostListPage";
 
 function Placeholder({ title }: { title: string }) {
   return (
@@ -24,7 +25,7 @@ export function App() {
   return (
     <BuildProvider>
       <Routes>
-        <Route path="/" element={<Placeholder title="bài viết" />} />
+        <Route path="/" element={<PostListPage />} />
         <Route path="/posts/:id" element={<Placeholder title="soạn bài" />} />
         <Route path="/tags" element={<Placeholder title="tags" />} />
         <Route path="*" element={<NotFound />} />
