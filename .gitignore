@@ -28,3 +28,4 @@ npm-debug.log*
 # Superpowers scratch (brainstorm mockups, plan ledgers)
 .superpowers/
 infra/cdk-outputs.json
+apps/admin/dev-config.json

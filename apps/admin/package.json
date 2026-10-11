@@ -1,0 +1,42 @@
+{
+  "name": "@blog/admin",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "dev:config": "node scripts/dev-config.mjs",
+    "build": "vite build",
+    "preview": "vite preview --port 5173",
+    "typecheck": "tsc -p tsconfig.json",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@blog/markdown": "workspace:*",
+    "@blog/shared": "workspace:*",
+    "@blog/ui-tokens": "workspace:*",
+    "@codemirror/commands": "catalog:",
+    "@codemirror/lang-markdown": "catalog:",
+    "@codemirror/language": "catalog:",
+    "@codemirror/language-data": "catalog:",
+    "@codemirror/state": "catalog:",
+    "@codemirror/view": "catalog:",
+    "react": "catalog:",
+    "react-dom": "catalog:",
+    "react-router": "catalog:",
+    "zod": "catalog:"
+  },
+  "devDependencies": {
+    "@testing-library/dom": "catalog:",
+    "@testing-library/react": "catalog:",
+    "@testing-library/user-event": "catalog:",
+    "@types/node": "catalog:",
+    "@types/react": "catalog:",
+    "@types/react-dom": "catalog:",
+    "@vitejs/plugin-react": "catalog:",
+    "jsdom": "catalog:",
+    "typescript": "catalog:",
+    "vite": "catalog:",
+    "vitest": "catalog:"
+  }
+}
