@@ -51,6 +51,8 @@ export interface SiteHostingProps {
   certificate: acm.ICertificate;
   zone: route53.IHostedZone;
   mediaBucket: s3.IBucket;
+  /** Content-Security-Policy sent with the admin SPA. */
+  adminCsp: string;
 }
 
 export class SiteHosting extends Construct {
@@ -61,7 +63,7 @@ export class SiteHosting extends Construct {
 
   constructor(scope: Construct, id: string, props: SiteHostingProps) {
     super(scope, id);
-    const { config, certificate, zone, mediaBucket } = props;
+    const { config, certificate, zone, mediaBucket, adminCsp } = props;
 
     this.siteBucket = privateBucket(this, "SiteBucket");
     this.adminBucket = privateBucket(this, "AdminBucket");
@@ -120,6 +122,21 @@ export class SiteHosting extends Construct {
       })),
     });
 
+    const adminHeaders = new cloudfront.ResponseHeadersPolicy(this, "AdminHeaders", {
+      comment: "oki-dev admin: security headers + CSP",
+      securityHeadersBehavior: {
+        contentSecurityPolicy: { contentSecurityPolicy: adminCsp, override: true },
+        strictTransportSecurity: { accessControlMaxAge: ONE_YEAR, override: true },
+        contentTypeOptions: { override: true },
+        frameOptions: { frameOption: cloudfront.HeadersFrameOption.DENY, override: true },
+        referrerPolicy: {
+          referrerPolicy: cloudfront.HeadersReferrerPolicy.STRICT_ORIGIN_WHEN_CROSS_ORIGIN,
+          override: true,
+        },
+        xssProtection: { protection: true, modeBlock: true, override: true },
+      },
+    });
+
     this.adminDistribution = new cloudfront.Distribution(this, "AdminDistribution", {
       ...common,
       domainNames: [config.adminHost],
@@ -128,7 +145,7 @@ export class SiteHosting extends Construct {
         origin: S3BucketOrigin.withOriginAccessControl(this.adminBucket),
         viewerProtocolPolicy: cloudfront.ViewerProtocolPolicy.REDIRECT_TO_HTTPS,
         cachePolicy: cloudfront.CachePolicy.CACHING_OPTIMIZED,
-        responseHeadersPolicy: cloudfront.ResponseHeadersPolicy.SECURITY_HEADERS,
+        responseHeadersPolicy: adminHeaders,
         compress: true,
       },
       // Single-page app: unknown paths render index.html.

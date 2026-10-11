@@ -1,4 +1,4 @@
-import { resolve } from "node:path";
+import { join, resolve } from "node:path";
 import { App } from "aws-cdk-lib";
 
 export const repoRoot = resolve(import.meta.dirname, "../..");
@@ -15,3 +15,6 @@ export const TEST_CONTEXT = {
 /** An app with test context; Lambda bundling is skipped to keep synth fast. */
 export const testApp = (context: Record<string, string> = TEST_CONTEXT) =>
   new App({ context: { ...context, "aws:cdk:bundling-stacks": [] } });
+
+/** A stand-in for apps/admin/dist so tests do not depend on a Vite build. */
+export const ADMIN_DIST_FIXTURE = join(import.meta.dirname, "fixtures/admin-dist");

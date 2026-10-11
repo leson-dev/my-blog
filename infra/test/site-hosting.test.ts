@@ -25,6 +25,7 @@ const synth = () => {
       zoneName: "example.dev",
     }),
     mediaBucket: createMediaBucket(stack, "Media", config),
+    adminCsp: "default-src 'self'",
   });
   return Template.fromStack(stack);
 };
@@ -115,5 +116,20 @@ describe("SiteHosting", () => {
         template.hasResourceProperties("AWS::Route53::RecordSet", { Name: name, Type: type });
       }
     }
+  });
+  it("sends the admin CSP with the usual security headers on the admin distribution only", () => {
+    const template = synth();
+    template.hasResourceProperties("AWS::CloudFront::ResponseHeadersPolicy", {
+      ResponseHeadersPolicyConfig: Match.objectLike({
+        SecurityHeadersConfig: Match.objectLike({
+          ContentSecurityPolicy: { ContentSecurityPolicy: "default-src 'self'", Override: true },
+          FrameOptions: { FrameOption: "DENY", Override: true },
+          StrictTransportSecurity: Match.objectLike({ AccessControlMaxAgeSec: 31536000 }),
+          ContentTypeOptions: { Override: true },
+          ReferrerPolicy: { ReferrerPolicy: "strict-origin-when-cross-origin", Override: true },
+        }),
+      }),
+    });
+    template.resourceCountIs("AWS::CloudFront::ResponseHeadersPolicy", 1);
   });
 });

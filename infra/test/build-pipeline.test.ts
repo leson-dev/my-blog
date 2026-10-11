@@ -65,7 +65,7 @@ describe("BuildPipeline", () => {
 
   it("keeps infra and e2e out of the image build context (no rebuild on infra edits)", () => {
     const ignored = readFileSync(join(repoRoot, ".dockerignore"), "utf8").split("\n");
-    expect(ignored).toEqual(expect.arrayContaining(["infra", "e2e"]));
+    expect(ignored).toEqual(expect.arrayContaining(["infra", "e2e", "apps/admin"]));
   });
 
   it("may invalidate and poll invalidations of the blog distribution", () => {

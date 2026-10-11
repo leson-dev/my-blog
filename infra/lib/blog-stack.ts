@@ -1,24 +1,24 @@
+import { join } from "node:path";
 import { CfnOutput, Stack, type StackProps } from "aws-cdk-lib";
 import type * as acm from "aws-cdk-lib/aws-certificatemanager";
 import * as route53 from "aws-cdk-lib/aws-route53";
 import * as s3deploy from "aws-cdk-lib/aws-s3-deployment";
 import type { Construct } from "constructs";
 import type { BlogConfig } from "./config";
+import { adminCsp } from "./constructs/admin-csp";
 import { ApiService } from "./constructs/api-service";
 import { BuildPipeline } from "./constructs/build-pipeline";
 import { Monitoring } from "./constructs/monitoring";
 import { createMediaBucket, SiteHosting } from "./constructs/site-hosting";
 import type { DataStack } from "./data-stack";
 
-const ADMIN_PLACEHOLDER = `<!doctype html>
-<html lang="vi"><head><meta charset="utf-8"><title>oki-dev admin</title></head>
-<body style="font-family:monospace;background:#0d1117;color:#7ee787;padding:2rem">~/oki-dev/admin$ coming soon</body></html>`;
-
 export interface BlogStackProps extends StackProps {
   config: BlogConfig;
   certificate: acm.ICertificate;
   data: DataStack;
   repoRoot: string;
+  /** Built admin SPA (apps/admin/dist). */
+  adminDist: string;
 }
 
 export class BlogStack extends Stack {
@@ -39,6 +39,11 @@ export class BlogStack extends Stack {
       certificate: props.certificate,
       zone,
       mediaBucket,
+      adminCsp: adminCsp({
+        apiOrigin: `https://${config.apiHost}`,
+        cognitoOrigin: data.userPoolDomain.baseUrl(),
+        uploadOrigin: `https://${mediaBucket.bucketRegionalDomainName}`,
+      }),
     });
     const build = new BuildPipeline(this, "Build", {
       table: data.table,
@@ -63,10 +68,21 @@ export class BlogStack extends Stack {
       dlq: build.dlq,
     });
 
-    // Runtime configuration for the admin SPA (Plan 5 adds the app itself next to it).
-    new s3deploy.BucketDeployment(this, "AdminConfig", {
+    // Hashed bundles first (immutable), then the shell + config.json (always revalidated),
+    // so a new index.html never points at assets that are not uploaded yet.
+    const adminAssets = new s3deploy.BucketDeployment(this, "AdminAssets", {
+      destinationBucket: hosting.adminBucket,
+      destinationKeyPrefix: "assets/",
+      sources: [s3deploy.Source.asset(join(props.adminDist, "assets"))],
+      cacheControl: [s3deploy.CacheControl.fromString("public, max-age=31536000, immutable")],
+      prune: false,
+    });
+    const adminShell = new s3deploy.BucketDeployment(this, "AdminShell", {
       destinationBucket: hosting.adminBucket,
       sources: [
+        s3deploy.Source.asset(props.adminDist, {
+          exclude: ["assets", "assets/**", "config.json", "dev-config.json"],
+        }),
         s3deploy.Source.jsonData("config.json", {
           region: this.region,
           apiUrl: api.url,
@@ -75,12 +91,13 @@ export class BlogStack extends Stack {
           cognitoDomain: data.userPoolDomain.baseUrl(),
           redirectUri: `https://${config.adminHost}/`,
         }),
-        s3deploy.Source.data("index.html", ADMIN_PLACEHOLDER),
       ],
+      cacheControl: [s3deploy.CacheControl.noCache()],
       distribution: hosting.adminDistribution,
-      distributionPaths: ["/config.json", "/index.html"],
+      distributionPaths: ["/*"],
       prune: false,
     });
+    adminShell.node.addDependency(adminAssets);
 
     new CfnOutput(this, "BlogUrl", { value: `https://${config.blogHost}/` });
     new CfnOutput(this, "AdminUrl", { value: `https://${config.adminHost}/` });

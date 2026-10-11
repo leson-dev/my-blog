@@ -11,3 +11,4 @@ docs
 **/cdk.out
 infra
 e2e
+apps/admin
