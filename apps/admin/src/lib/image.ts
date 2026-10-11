@@ -35,7 +35,7 @@ export async function prepareImage(file: File): Promise<PreparedImage> {
   const blob = await new Promise<Blob | null>((resolve) =>
     canvas.toBlob(resolve, "image/webp", WEBP_QUALITY),
   );
-  if (!blob || blob.type !== "image/webp") throw new Error("Trình duyệt không xuất được ảnh WebP");
+  if (blob?.type !== "image/webp") throw new Error("Trình duyệt không xuất được ảnh WebP");
   return { blob, contentType: "image/webp" };
 }
 

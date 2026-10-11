@@ -30,7 +30,6 @@ export function useAutosave(
   // Declared before the countdown effect: on unmount this cleanup runs first and saves.
   useEffect(() => flush, [flush]);
 
-  // biome-ignore lint/correctness/useExhaustiveDependencies: `revision` restarts the countdown on every change.
   useEffect(() => {
     if (!enabled) return;
     timer.current = setTimeout(() => {

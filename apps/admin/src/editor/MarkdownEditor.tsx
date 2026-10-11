@@ -34,7 +34,6 @@ export function MarkdownEditor({
   const onImagesRef = useRef(onImageFiles);
   onImagesRef.current = onImageFiles;
 
-  // biome-ignore lint/correctness/useExhaustiveDependencies: the view is created once; `value` is synced by the next effect.
   useEffect(() => {
     const v = new EditorView({
       parent: host.current as HTMLDivElement,

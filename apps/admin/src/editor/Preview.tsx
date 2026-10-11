@@ -45,7 +45,6 @@ export function Preview({
           Lỗi xem trước: {error}
         </p>
       ) : null}
-      {/* biome-ignore lint/security/noDangerouslySetInnerHtml: output of the sanitizing pipeline shared with the public site */}
       <div dangerouslySetInnerHTML={{ __html: html }} />
     </article>
   );
