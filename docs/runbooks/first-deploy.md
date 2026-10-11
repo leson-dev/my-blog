@@ -107,7 +107,7 @@ Cognito gửi mật khẩu tạm qua email. Lần đăng nhập đầu (khi có 
 - Quy trình: `git checkout -b feat/…` → push → `gh pr create` → CI xanh → `gh pr merge --squash` → workflow `deploy` tự chạy (deploy 3 stack, build lại site, smoke + E2E chỉ đọc).
 - Quyền AWS: role `blog-github-deploy` / `blog-github-gc` qua OIDC (stack `BlogCi`, deploy tay: `pnpm --filter @blog/infra exec cdk deploy BlogCi`). Không có access key/GitHub Secret.
 - Repo dùng **subject bất biến** của GitHub: `repo:leson-dev@124803053/my-blog@1413856263:ref:refs/heads/main` (context `githubOidcSubject` trong `infra/cdk.json`; xem bằng `gh api repos/leson-dev/my-blog/actions/oidc/customization/sub`). Đổi tên tài khoản/repo không làm hỏng; chuyển repo sang chủ khác thì phải sửa giá trị này + deploy lại `BlogCi`.
-- Deploy lại không đổi code: `gh workflow run deploy.yml`.
+- Merge chỉ sửa tài liệu (`*.md`, `docs/**`, `LICENSE`) **không** deploy (`paths-ignore`); `ci` vẫn chạy trên mọi PR vì là check bắt buộc của ruleset (bỏ qua thì PR kẹt). Deploy lại không đổi code: `gh workflow run deploy.yml`.
 - Dọn asset CDK: workflow `gc` chạy ngày 1 hằng tháng; xem trước bằng `gh workflow run gc.yml -f action=print`. Nếu `gc` làm huỷ một lượt deploy đang chờ (cùng nhóm concurrency) → chạy lại `deploy`.
 - E2E local (chỉ đọc prod): `pnpm --filter @blog/e2e e2e`.
 - Workflow đỏ → GitHub gửi email; xem `gh run view --log-failed`. Không tự rollback: sửa qua PR mới.
