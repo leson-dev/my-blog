@@ -19,6 +19,12 @@ pnpm --filter @blog/infra exec cdk bootstrap aws://002581114203/ap-northeast-1 a
 
 ## 2. Diff rồi deploy
 
+Build trang quản trị **ngay trước** khi diff (CDK đọc `apps/admin/dist`; thiếu thì synth báo lỗi kèm lệnh này; bản build cũ sẽ được deploy nguyên trạng):
+
+```bash
+pnpm --filter @blog/admin build
+```
+
 ```bash
 pnpm --filter @blog/infra exec cdk diff --all
 pnpm --filter @blog/infra exec cdk deploy --all --require-approval never --outputs-file cdk-outputs.json
@@ -87,3 +93,10 @@ Cognito gửi mật khẩu tạm qua email. Lần đăng nhập đầu (khi có 
 - `BlogData` bật termination protection; bảng DynamoDB và user pool bật deletion protection và `RETAIN`.
 - Log: `/aws/lambda/blog-build`, `/aws/lambda/blog-api` (giữ 1 tháng).
 - Cảnh báo: DLQ có message, API lỗi ≥5/5 phút, build lỗi; ngân sách 5 USD/tháng (dự báo).
+
+## Trang quản trị
+
+- `https://admin.oki-dev.xyz/` → đăng nhập Cognito (MFA TOTP bắt buộc); trang đăng nhập màu C1 cấu hình ở `infra/lib/branding.ts` (logo phải có tỉ lệ rộng:cao trong khoảng 1:1–4:1, Cognito từ chối nếu khác).
+- Dev local: `pnpm --filter @blog/admin dev:config && pnpm --filter @blog/admin dev` → `http://localhost:5173` (đăng nhập bằng tài khoản thật, ghi thẳng vào prod — cẩn thận khi đăng bài).
+- CSP: `infra/lib/constructs/admin-csp.ts`. Lỗi "Refused to …" trong console → thêm nguồn ở đó, không nới `script-src`.
+- Kiểm tra sau deploy: `curl -sI https://admin.oki-dev.xyz/` có `content-security-policy`, `cache-control: no-cache`; file `/assets/*.js` có `immutable`.
