@@ -3,6 +3,7 @@ import { join } from "node:path";
 import type { App } from "aws-cdk-lib";
 import { BlogStack } from "./blog-stack";
 import { CertStack } from "./cert-stack";
+import { CiStack } from "./ci-stack";
 import { readConfig } from "./config";
 import { DataStack } from "./data-stack";
 
@@ -32,5 +33,6 @@ export function createStacks(
     repoRoot,
     adminDist,
   });
-  return { cert, data, blog };
+  const ci = new CiStack(app, "BlogCi", { env, githubRepo: config.githubRepo });
+  return { cert, data, blog, ci };
 }

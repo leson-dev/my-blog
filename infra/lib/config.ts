@@ -7,6 +7,8 @@ export interface BlogConfig {
   hostedZoneId: string;
   alertEmail: string;
   adminDevOrigin: string;
+  /** "owner/repo" trusted by the GitHub OIDC roles. */
+  githubRepo: string;
   blogHost: string;
   adminHost: string;
   apiHost: string;
@@ -19,6 +21,7 @@ const KEYS = [
   "hostedZoneId",
   "alertEmail",
   "adminDevOrigin",
+  "githubRepo",
 ] as const;
 
 export function readConfig(app: App): BlogConfig {
