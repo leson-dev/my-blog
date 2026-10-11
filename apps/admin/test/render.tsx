@@ -1,7 +1,8 @@
 import { render } from "@testing-library/react";
 import type { ReactElement } from "react";
-import { BrowserRouter } from "react-router";
-import { vi } from "vitest";
+import { createBrowserRouter } from "react-router";
+import { RouterProvider } from "react-router/dom";
+import { onTestFinished, vi } from "vitest";
 import type { Endpoints } from "../src/api/endpoints";
 import { BuildProvider } from "../src/build/BuildProvider";
 import { type Services, ServicesProvider } from "../src/context";
@@ -46,13 +47,19 @@ export function renderWithServices(ui: ReactElement, api: Endpoints = fakeApi())
     auth: { logout: vi.fn() },
     uploadImage: vi.fn(async (file: File) => `https://blog.oki-dev.xyz/media/2026/${file.name}`),
   };
-  // BrowserRouter on jsdom's real history: tests can assert on `location` after navigation.
-  const utils = render(
-    <BrowserRouter>
-      <ServicesProvider value={services}>
-        <BuildProvider>{ui}</BuildProvider>
-      </ServicesProvider>
-    </BrowserRouter>,
-  );
+  // A data router (as in main.tsx) on jsdom's real history: `useBlocker` works and tests can
+  // assert on `location` after navigation.
+  const router = createBrowserRouter([
+    {
+      path: "*",
+      element: (
+        <ServicesProvider value={services}>
+          <BuildProvider>{ui}</BuildProvider>
+        </ServicesProvider>
+      ),
+    },
+  ]);
+  onTestFinished(() => router.dispose());
+  const utils = render(<RouterProvider router={router} />);
   return { ...utils, api, services };
 }

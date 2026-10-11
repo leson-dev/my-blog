@@ -49,6 +49,7 @@ const bilingual = () =>
   });
 
 async function open(post = bilingual(), autosaveDelayMs = 50) {
+  history.replaceState(null, "", `/posts/${post.id}`);
   const server = serverLike(post);
   const utils = renderWithServices(
     <EditorPage id={post.id} autosaveDelayMs={autosaveDelayMs} />,
@@ -190,5 +191,32 @@ describe("EditorPage", () => {
         expect.objectContaining({ version: 9 }),
       ),
     );
+  });
+  it("saves a dirty draft before leaving for another page", async () => {
+    vi.spyOn(window, "confirm").mockReturnValue(false);
+    const { server } = await open(bilingual(), 60_000);
+    await userEvent.type(screen.getByLabelText("Nội dung"), "!");
+    await userEvent.click(screen.getByRole("link", { name: "tags" }));
+    await waitFor(() => expect(location.pathname).toBe("/tags"));
+    expect(server.api.upsertVersion).toHaveBeenCalledWith(
+      "01JTESTPOST",
+      "vi",
+      expect.objectContaining({ content: "vi!" }),
+    );
+    expect(window.confirm).not.toHaveBeenCalled();
+  });
+
+  it("asks before leaving with unsaved edits to a published version, and can stay", async () => {
+    vi.spyOn(window, "confirm").mockReturnValue(false);
+    const published = makePost({
+      versions: { vi: makeVersion({ status: "published", publishedAt: "2026-10-01T00:00:00Z" }) },
+    });
+    const { server } = await open(published);
+    await userEvent.type(screen.getByLabelText("Nội dung"), "!");
+    await userEvent.click(screen.getByRole("link", { name: "tags" }));
+    await waitFor(() => expect(window.confirm).toHaveBeenCalledOnce());
+    expect(location.pathname).toBe("/posts/01JTESTPOST");
+    expect(server.api.upsertVersion).not.toHaveBeenCalled();
+    expect(screen.getByLabelText("Nội dung")).toHaveProperty("value", "# Xin chào!");
   });
 });

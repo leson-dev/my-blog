@@ -3,7 +3,8 @@ import "@blog/ui-tokens/tokens.css";
 import "@blog/ui-tokens/prose.css";
 import "./styles/admin.css";
 import { createRoot } from "react-dom/client";
-import { BrowserRouter } from "react-router";
+import { createBrowserRouter } from "react-router";
+import { RouterProvider } from "react-router/dom";
 import { App } from "./App";
 import { browserSessionDeps } from "./auth/session";
 import { bootstrap } from "./bootstrap";
@@ -23,13 +24,18 @@ const result = await bootstrap({
 });
 
 if (result.kind === "ready") {
-  root.render(
-    <BrowserRouter>
-      <ServicesProvider value={result.services}>
-        <App />
-      </ServicesProvider>
-    </BrowserRouter>,
-  );
+  // A data router (rather than <BrowserRouter>) so the editor can block in-app navigation.
+  const router = createBrowserRouter([
+    {
+      path: "*",
+      element: (
+        <ServicesProvider value={result.services}>
+          <App />
+        </ServicesProvider>
+      ),
+    },
+  ]);
+  root.render(<RouterProvider router={router} />);
 } else if (result.kind === "redirecting") {
   root.render(<p className="boot">Đang chuyển tới trang đăng nhập…</p>);
 } else {

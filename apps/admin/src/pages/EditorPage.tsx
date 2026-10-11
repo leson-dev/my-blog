@@ -1,6 +1,6 @@
 import { LANGS, type Lang, LIMITS, type Tag, type TagSummary } from "@blog/shared";
 import { useEffect, useRef, useState } from "react";
-import { useNavigate, useSearchParams } from "react-router";
+import { useBlocker, useNavigate, useSearchParams } from "react-router";
 import { errorMessage } from "../api/client";
 import { useBuild } from "../build/BuildProvider";
 import { Layout } from "../components/Layout";
@@ -71,6 +71,33 @@ export function EditorPage({
     addEventListener("beforeunload", warn);
     return () => removeEventListener("beforeunload", warn);
   }, [anyDirty]);
+
+  // Leaving the editor inside the app: save drafts on the way out; ask only about what cannot be
+  // saved (published versions change only on "Cập nhật", or a save that failed). The blocked
+  // navigation is cancelled at once and replayed after the save/confirm.
+  const allowLeave = useRef(false);
+  const blocker = useBlocker(
+    ({ currentLocation, nextLocation }) =>
+      !allowLeave.current && anyDirty && currentLocation.pathname !== nextLocation.pathname,
+  );
+  useEffect(() => {
+    if (blocker.state !== "blocked") return;
+    const target = blocker.location;
+    blocker.reset();
+    const dirtyLangs = LANGS.filter((l) => editor.drafts[l]?.dirty);
+    void (async () => {
+      let saved = true;
+      for (const l of dirtyLangs) {
+        if (editor.post?.versions[l]?.status === "published" || !(await editor.saveVersion(l))) {
+          saved = false;
+        }
+      }
+      if (saved || window.confirm("Còn thay đổi chưa lưu. Rời trang và bỏ các thay đổi này?")) {
+        allowLeave.current = true;
+        navigate(`${target.pathname}${target.search}${target.hash}`);
+      }
+    })();
+  }, [blocker, editor, navigate]);
 
   if (!post || !lang || !version || !draft) {
     return (
